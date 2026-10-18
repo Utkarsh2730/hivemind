@@ -1,49 +1,115 @@
-# Hivemind — Track 03 (WeMakeDevs × FalkorDB)
+<div align="center">
 
-**Any company can turn its docs, tickets, meeting notes, chats and GitHub repos into one connected FalkorDB graph, then ask who owns what, who actually knows what, and why decisions were made, and generate a PRD or sprint plan from it. Every answer and every line is linked to its source.**
+<img src="docs/logo.svg" width="72" alt="Hivemind logo">
 
-**Live demo:** [link goes here after deploy] — open the Lumen Pay demo, or create your own workspace. Nothing to install.
+# Hivemind
 
-**Run it yourself, even with no internet:** see [How to use Hivemind offline](#how-to-use-hivemind-offline) — one command with Docker.
+**The memory your company never had.**
+
+A knowledge graph agent that connects a company's documents, tickets, chats and repositories in FalkorDB.<br>
+It answers who owns what, who knows what and why decisions were made — with sources — and turns that knowledge into PRDs and sprint plans.
+
+![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)
+![FalkorDB](https://img.shields.io/badge/FalkorDB-knowledge%20graph-4338ca)
+![FastAPI](https://img.shields.io/badge/FastAPI-backend-009688?logo=fastapi&logoColor=white)
+![Claude](https://img.shields.io/badge/Claude-optional%20AI-d97757)
+![Tests](https://img.shields.io/badge/tests-21%20passing-3f9d78)
+![Self--hostable](https://img.shields.io/badge/deploy-cloud%20or%20offline-f59e0b)
+
+**WeMakeDevs × FalkorDB Hackathon · Track 03 — Company Brain**
+
+[Getting started](#getting-started) · [Features](#features) · [Architecture](#architecture) · [How we use FalkorDB](#how-we-use-falkordb) · [Run offline](#run-offline-and-self-host)
+
+</div>
+
+<!-- TODO: add the live demo URL and video link once deployed -->
 
 ![Hivemind landing page](docs/landing.png)
 
+---
+
+## The problem
+
+A company's knowledge is spread across Confluence pages, Jira tickets, Slack threads and pull requests. The facts exist, but the **connections** between them do not:
+
+- New engineers ask the same few people the same questions.
+- Decisions are re-argued because nobody can find who made them, when, or why — or whether they still hold.
+- Ownership on paper differs from who actually knows a system, and nobody notices until that person is on leave.
+- Every sprint plan and PRD starts from a blank page, even though the tickets, blockers and decisions are already written down.
+
+Search tools return documents. Teams need **answers that follow relationships**: person → ticket → project → system → decision.
+
+## The solution
+
+Hivemind models a company as a graph in **FalkorDB** — people, teams, projects, systems, documents, tickets, messages and decisions — and gives an agent tools to traverse it.
+
+| Ask | Get |
+|---|---|
+| *"Who should I ask about Kafka consumer lag?"* | **Tomas Silva**, ranked from evidence (he wrote the consumer runbook and library and owns the Kafka upgrade), shown next to formal owner Priya Nair. Cites `DOC-3`, `PLAT-21`, `MSG-2`, `MSG-3`. |
+| *"What changed about customer login, and why?"* | **Auth0 → Keycloak**: DEC-3 is marked outdated and replaced by DEC-4 (cost at 2M MAU, EU data residency), with the meeting, RFC and message that record it. |
+| *"Why is the checkout redesign blocked?"* | **PAY-52** (Stripe retry storm) blocks GRW-7; Zara Ahmed is assigned and can unblock it. |
+| *Sprint plan for Checkout Redesign* | A prioritised backlog: the blocker first, owners from assignees or expertise, risks flagged, every line cited. |
+
 ![A cited answer with the related part of the knowledge graph highlighted](docs/ask.png)
+
+## Features
+
+**Knowledge**
+- **Cited answers.** Every claim links to the document, ticket or message it came from; the graph highlights the exact path used, and each search step streams live.
+- **Expertise from evidence.** People are ranked by what they authored, were assigned and were credited for, separately from formal ownership.
+- **Decision history.** Decisions are traced to the meeting or thread where they were made. When a new decision replaces an old one, the old one is marked outdated automatically — and can be restored if detection was wrong.
+- **Knowledge risks.** FalkorDB graph algorithms find key connectors, systems only one person knows, stalled work and unlinked knowledge.
+
+**Planning**
+- **PRDs and sprint plans** generated from a project's live decisions, tickets, blockers and experts. Blockers are scheduled first and owners come from assignments or hands-on expertise. Export to Markdown or PDF, or post to a channel.
+
+**Ingestion and integrations**
+- Paste or upload documents, CSV and JSON; import a **GitHub** repository's issues, pull requests and comments.
+- **Slack** app: live message capture, `/hivemind <question>` in Slack, channel history import, or a Slack export `.zip`.
+- **Jira, Linear and GitHub** webhooks; **Zapier, Make and n8n** for Notion, email and others.
+- Decision announcements and shared answers to **Slack, Microsoft Teams, Discord and Google Chat**.
+- **MCP server** so Claude Desktop and Cursor can query the company graph.
+
+**Platform**
+- **Multi-tenant:** any company can register; each workspace is a separate FalkorDB graph with its own access key.
+- **Works without AI:** a graph-only planner answers all demo questions correctly (10/10); with an Anthropic key, Claude plans the tool calls and writes the answers.
+- **Deploy anywhere:** FalkorDB Cloud + Render, Docker Compose, or a fully offline, air-gapped bundle.
 
 | Sprint plan built from the graph | Knowledge risks from graph algorithms |
 |---|---|
 | ![Sprint plan](docs/sprint.png) | ![Knowledge risks](docs/risks.png) |
 
-## What it does
+## Track 03 alignment
 
-1. **Register your company.** You get a private workspace with its own FalkorDB graph and a secret access link.
-2. **Bring your knowledge.** Paste docs, meeting notes, tickets and chats; upload `.txt`, `.md`, `.csv` or `.json`; **import a GitHub repo**; or **connect your tools** (below). Everything is linked to the right people, projects and tools automatically.
-3. **Connect Slack and other platforms, in both directions.**
-   - **Slack app:** messages in channels the bot is in flow in live, `/hivemind <question>` answers in Slack with sources, and recent channel history can be imported. No Slack app? Upload a Slack export `.zip`.
-   - **Jira, Linear, GitHub webhooks,** plus anything via Zapier, Make or n8n (Teams, Notion, Google Docs, email): one private webhook URL per company.
-   - **Notifications out** to Slack, Discord, Microsoft Teams or Google Chat: new and replaced decisions are announced, and any answer, PRD or sprint plan can be sent to the channel.
-4. **Ask anything.** "Why did we choose Postgres?", "Who should I ask about Kafka?", "Why is checkout blocked?" Hivemind follows the connections, shows each step live, cites its sources, and highlights the path on the map.
-5. **See who actually knows what.** Expertise comes from evidence (who wrote about it, who was assigned it, who colleagues thank), not from org charts, and it's shown next to formal ownership.
-6. **Write a PRD or sprint plan** for any project in one click. Blockers are scheduled first, owners come from assignees or whoever has hands-on experience, risks are flagged, and every line is cited. Download as Markdown or save as PDF.
-7. **Find knowledge risks** with FalkorDB's graph algorithms: key connectors, single points of failure, stalled work, and knowledge nobody is linked to.
-8. **It stays current.** When a new message records a decision that replaces an older one, the old one is marked outdated. Mistakes can be removed or marked "not a decision", which restores whatever it replaced.
-9. **Use it from Claude Desktop or Cursor** through the included MCP server.
-
-A public demo company, **Lumen Pay** (12 people, 6 projects, 27 docs/tickets/chats, 7 decisions), lets judges try everything immediately.
-
-## How we use FalkorDB
-
-| FalkorDB feature | What it does here |
+| Track 03 focus | How Hivemind delivers it |
 |---|---|
-| **One graph per company** (`cb_<slug>`) | Each company is fully isolated; the registry graph stores only a hash of each access key |
-| **Full-text indexes** on `Source(text, title)` and `Decision(title, summary)` | Retrieval: each question word is scored separately and the scores are added up, so items covering more of the question rank first |
-| **Multi-hop Cypher** | Decision trails (`Decision-[:DECIDED_IN]->Source`, `-[:SUPERSEDES]->`), blockers (`Source-[:BLOCKS]->Source-[:MENTIONS]->Project`), expertise (`Person-[:AUTHORED]->Source-[:MENTIONS]->System`) |
-| **`algo.betweenness`** | Key connectors: people on the most paths between knowledge |
-| **`algo.pageRank`** | Central topics: projects and tools everything depends on |
-| **`algo.WCC`** (connected components) | Unconnected knowledge: items linked to no person or project |
-| **Read-only queries** (`GRAPH.RO_QUERY`) | Every query the agent runs is read-only, and write keywords are rejected, so the model can't change the graph |
+| Knowledge from docs, tickets and chats in one graph | Documents, tickets, messages, meetings, GitHub issues/PRs and Slack history become `Source` nodes linked to people, projects and systems automatically (mentions, @handles, ~100 known technologies, and AI extraction when a key is set). |
+| Who owns what, and who knows what | Ownership comes from `OWNS`/`LEADS` edges; expertise is scored from `AUTHORED`, `ASSIGNED_TO`, colleague mentions and `MADE` decisions — and the two are shown side by side. |
+| Tracing decisions back to their source | `Decision -[:DECIDED_IN]-> Source`, `Person -[:MADE]-> Decision`, `Decision -[:SUPERSEDES]-> Decision`. |
+| Keeping knowledge current as things change | Live ingestion from the UI, Slack, webhooks and MCP; replaced decisions become outdated; mistakes can be removed or reverted. |
+| Answers with clear sources | Every answer and every generated document cites `[KEY]` sources, which open the original text and focus the graph. |
 
-### Graph model
+## Architecture
+
+```mermaid
+graph LR
+  subgraph Clients
+    UI[Web app<br/>Ask · Documents · Risks]
+    SL[Slack · Teams · Discord]
+    MCP[Claude Desktop / Cursor<br/>via MCP]
+    WH[Jira · Linear · GitHub<br/>webhooks]
+  end
+  UI -->|REST + streamed steps| API[FastAPI server]
+  SL <-->|events · /hivemind · alerts| API
+  MCP -->|REST| API
+  WH -->|webhooks| API
+  API --> AG[Agent<br/>Claude tool use or<br/>graph-only planner]
+  API --> DOC[PRD & sprint writer]
+  API --> ING[Ingestion<br/>linking · decisions]
+  AG & DOC & ING --> FDB[(FalkorDB<br/>one graph per company)]
+```
+
+**Graph model**
 
 ```mermaid
 graph LR
@@ -58,212 +124,184 @@ graph LR
   Decision -- SUPERSEDES --> Decision
 ```
 
-### Architecture
+**Agent tools:** `search_knowledge` (full-text), `entity_profile`, `who_knows` (expertise ranking), `decision_trail`, `company_insights` (graph algorithms) and read-only `run_cypher`.
 
-```mermaid
-graph LR
-  UI[Web app<br/>Ask · Write · Add info · Map] -->|REST + live steps| API[FastAPI server]
-  MCP[MCP server<br/>Claude Desktop / Cursor] -->|REST| API
-  API --> Agent[Agent<br/>Claude Opus 5.5 tool use,<br/>or graph-only planner]
-  API --> Docs[PRD / sprint writer]
-  API --> Ingest[Ingestion<br/>linking · decisions · GitHub]
-  Agent & Docs & Ingest --> FDB[(FalkorDB<br/>one graph per company)]
-```
+**Tech stack:** FalkorDB · Python 3.12 · FastAPI · Anthropic Claude (optional) · vis-network · MCP · Docker.
 
-## Connections
+## How we use FalkorDB
 
-Open **Connect apps** in a workspace. Each company connects its own tools; the shared demo has connections switched off.
-
-| Tool | Direction | How |
-|---|---|---|
-| Slack | In (live) + `/hivemind` answers | Copy the generated app manifest → api.slack.com/apps → *From a manifest* → install, then paste the bot token and signing secret. Every request is checked against the signing secret (HMAC, 5-minute window); Slack's retries and bot posts are ignored. |
-| Slack history | In | "Import recent channel history" (channels the bot is in), or upload a Slack export `.zip`, which is parsed in the browser |
-| Jira, Linear, GitHub | In | Point their webhooks at the private URL `/hooks/<workspace>/<token>`. Their native payloads are recognised. |
-| Zapier, Make, n8n | In | POST `{"text","author","channel","kind"}` (or `{"items":[...]}`) to the same URL; this reaches Teams, Notion, Google Docs, email and more |
-| Slack, Discord, Teams, Google Chat | Out | Incoming-webhook URL. Decisions are announced, and there's a "Send to channel" button on answers and documents. Only those chat hosts are allowed. |
-
-Secrets are stored on the workspace's registry node, are never returned to the browser in full, and the webhook URL can be rotated.
-
-## Quality
-
-- **Accuracy check** (`python eval_qa.py`): 10 questions about the demo company, where each answer must contain the right facts and cite the right sources. **Graph-only mode: 10/10.** Run it with `ANTHROPIC_API_KEY` set to score Claude mode.
-- **Tests** (`python -m pytest -q`): 21 tests. 9 cover connections: Slack signature checks (valid, wrong, expired), live Slack messages becoming knowledge and announcing decisions, `/hivemind` answering in channel, Jira, Linear, GitHub and generic webhooks, the chat-host allowlist, hidden secrets, and demo protection. The other 12 cover company isolation, access keys, people deduplication, linking without AI, decisions not over-detected, replace-and-undo of decisions, deletion, cited answers, sprint ordering, PRD sections, the graph algorithms, and the full API including live steps.
-- **Scale:** importing 400 items takes under a second. Above 450 nodes the map shows an overview and loads just the part behind each answer.
-
-## Use it from Claude Desktop (MCP)
-
-`mcp_server.py` exposes `ask_company`, `list_projects`, `write_prd`, `write_sprint_plan` and `add_to_brain`. In the app, choose menu (···) → **Use in Claude Desktop** to copy a ready-made config, or write it yourself:
-
-```json
-{"mcpServers": {"hivemind": {"command": "python3", "args": ["/path/to/mcp_server.py"],
-  "env": {"BRAIN_URL": "https://your-site.onrender.com", "BRAIN_WORKSPACE": "your-slug", "BRAIN_KEY": "your-key"}}}}
-```
-
-It needs `pip install mcp`, and works with mcp 1.x and 2.x.
-
-## How to use Hivemind offline
-
-Hivemind can run entirely on your own computer or company server. It needs no cloud accounts and no internet while it runs: the fonts, graph library and photos are bundled with the app, and the database (FalkorDB) runs next to it.
-
-### What works offline
-
-| Works with no internet | Needs internet (optional) |
+| FalkorDB capability | Use in Hivemind |
 |---|---|
-| Asking questions with cited answers (graph-only mode) | AI-written answers and documents (Claude) |
-| PRDs and sprint plans | Importing a GitHub repository |
-| Knowledge risks (graph algorithms) | Slack app, `/hivemind` command, Slack history import |
-| Adding knowledge: paste, upload `.txt` `.md` `.csv` `.json`, Slack export `.zip` | Notifications to Slack, Discord, Teams or Google Chat |
-| Creating workspaces, the demo company, the knowledge graph view | Jira, Linear or GitHub webhooks (they need to reach your server) |
+| **Multiple graphs** | One isolated graph per company (`cb_<workspace>`), plus a registry graph that stores only SHA-256 hashes of access keys. |
+| **Full-text indexes** | On `Source(text, title)` and `Decision(title, summary)`. Each question term is scored separately and the scores combined, so items covering more of the question rank first. |
+| **Multi-hop Cypher** | Decision trails, blocker chains (`Source-[:BLOCKS]->Source-[:MENTIONS]->Project`), expertise (`Person-[:AUTHORED]->Source-[:MENTIONS]->System`). |
+| **`algo.betweenness`** | Key connectors — people on the most paths between knowledge. |
+| **`algo.pageRank`** | Central topics — the projects and systems most work depends on. |
+| **`algo.WCC`** | Unconnected knowledge — items linked to no person or project. |
+| **Read-only queries** | Every agent query runs through `GRAPH.RO_QUERY`, and write keywords are rejected, so the model cannot modify the graph. |
 
-### Option A — A computer with Docker (recommended)
+## Getting started
 
-**1. Install Docker** — [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Mac or Windows, or Docker Engine with the compose plugin on Linux. Start it.
-
-**2. Get Hivemind** — download this repository (green **Code** button → **Download ZIP**, then unzip) or clone it:
-
-```bash
-git clone https://github.com/Utkarsh2730/hivemind.git
-cd hivemind
-```
-
-**3. Start it** (the first run downloads the FalkorDB image and builds the app; after that no internet is needed):
+### Try the demo locally (one command)
 
 ```bash
+git clone https://github.com/Utkarsh2730/hivemind.git && cd hivemind
 docker compose up -d
 ```
 
-**4. Open it** at **http://localhost:8000**. Try the Lumen Pay demo, or click **Create a workspace** and save the private access link it gives you. FalkorDB's own graph browser is at http://localhost:3000.
+Open **http://localhost:8000** and choose **Try the live demo** (Lumen Pay: 12 people, 6 projects, 27 documents/tickets/messages, 7 decisions), or create your own workspace.
 
-**5. Everyday use**
+### Deploy to the cloud (free tiers)
 
-| To... | Run |
+1. Create a free instance on **[FalkorDB Cloud](https://app.falkordb.cloud)** and note its host, port, username and password.
+2. On **[Render](https://dashboard.render.com)**, choose **New → Blueprint** and select this repository (`render.yaml` is included).
+3. Set `FALKORDB_HOST`, `FALKORDB_PORT`, `FALKORDB_USERNAME`, `FALKORDB_PASSWORD`, and optionally `ANTHROPIC_API_KEY` and `GITHUB_TOKEN`.
+4. Deploy. On first start the app creates the demo workspace in FalkorDB Cloud.
+
+### Configuration
+
+| Variable | Purpose | Default |
+|---|---|---|
+| `FALKORDB_HOST` / `FALKORDB_PORT` | FalkorDB server; leave unset on macOS to use embedded FalkorDB | — / `6379` |
+| `FALKORDB_USERNAME` / `FALKORDB_PASSWORD` / `FALKORDB_SSL` | Credentials and TLS for hosted FalkorDB | — |
+| `ANTHROPIC_API_KEY` | Enables Claude for answers, documents and entity extraction | graph-only |
+| `GITHUB_TOKEN` | Higher GitHub API rate limit for repository import | unauthenticated |
+| `PUBLIC_URL` | Public base URL used in Slack and webhook URLs | from request |
+| `PORT` / `HIVEMIND_PORT` | App port (server / Docker host) | `8000` |
+
+## Run offline and self-host
+
+Hivemind runs entirely on your own machine or server: no cloud accounts and no internet at runtime. Fonts, the graph library and images are bundled with the app, and FalkorDB runs alongside it in Docker.
+
+| Works offline | Needs internet (optional) |
 |---|---|
-| Stop Hivemind (data is kept) | `docker compose stop` |
-| Start it again | `docker compose start` |
-| See whether it is running | `docker compose ps` |
-| See logs if something looks wrong | `docker compose logs hivemind` |
-| Remove the containers, keep the data | `docker compose down` |
-| Remove everything, including all data | `docker compose down -v` |
+| Cited answers (graph-only mode), PRDs and sprint plans, knowledge risks | AI-written answers and documents (Claude) |
+| Paste and file uploads, Slack export `.zip`, workspaces, graph view | GitHub import, Slack app, chat notifications, external webhooks |
 
-**6. Let colleagues use it** — other computers on the same network can open `http://<this-computer's-IP>:8000`. Share each workspace's private access link only with your team.
+**With Docker (recommended)**
 
-**7. Optional settings** — create a file named `.env` next to `docker-compose.yml`:
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Mac/Windows) or Docker Engine with the compose plugin (Linux).
+2. Download this repository (**Code → Download ZIP**) or `git clone` it, then in that folder run:
+   ```bash
+   docker compose up -d
+   ```
+3. Open **http://localhost:8000**. Colleagues on the same network can use `http://<server-ip>:8000`. FalkorDB's own browser is at http://localhost:3000.
+
+| Task | Command |
+|---|---|
+| Stop / start (data is kept) | `docker compose stop` / `docker compose start` |
+| Status and logs | `docker compose ps` / `docker compose logs hivemind` |
+| Update to a new version | `docker compose up -d --build` |
+| Remove containers (keep data) / remove everything | `docker compose down` / `docker compose down -v` |
+
+Optional settings go in a `.env` file next to `docker-compose.yml`, for example `HIVEMIND_PORT=8080` or `ANTHROPIC_API_KEY=...`.
+
+**Air-gapped machines (no internet at all)**
 
 ```bash
-HIVEMIND_PORT=8000            # change if port 8000 is taken
-ANTHROPIC_API_KEY=            # only if you have internet and want AI answers
-PUBLIC_URL=                   # e.g. https://hivemind.yourcompany.com when behind a reverse proxy
+# On a machine with Docker and internet
+./scripts/package_offline.sh          # -> offline/hivemind-offline.tar.gz (both images + installer)
+
+# On the offline machine
+tar -xzf hivemind-offline.tar.gz && cd bundle && ./install.sh
 ```
 
-Then run `docker compose up -d` again.
+**macOS without Docker:** `./scripts/run_local.sh` runs with embedded FalkorDB (internet is needed once to install Python packages).
 
-### Option B — A machine with no internet at all (air-gapped)
-
-On a computer that **has** Docker and internet, build a single installer file:
-
-```bash
-./scripts/package_offline.sh
-# creates offline/hivemind-offline.tar.gz (both Docker images + installer)
-```
-
-Copy that file to the offline machine (USB drive, internal file share), then on the offline machine:
+<details>
+<summary><b>Back up and restore data</b></summary>
 
 ```bash
-tar -xzf hivemind-offline.tar.gz
-cd bundle
-./install.sh
-```
-
-The installer loads the images, starts Hivemind and tells you when **http://localhost:8000** is ready. Use the same everyday commands as Option A, run inside the `bundle` folder.
-
-### Option C — A Mac without Docker
-
-```bash
-./scripts/run_local.sh
-```
-
-The first run needs internet to install Python packages; after that it runs offline with an embedded FalkorDB database stored in `data/`. Stop it with `Ctrl+C`.
-
-### Back up and restore your data (Docker)
-
-```bash
-# Back up: save the database and copy it out of the container
+# Back up
 docker compose exec falkordb redis-cli BGSAVE
 docker compose cp falkordb:/data ./hivemind-backup
 
-# Restore: copy a backup back in and restart the database
+# Restore
 docker compose stop falkordb
 docker compose cp ./hivemind-backup/. falkordb:/data
 docker compose start falkordb
 ```
+</details>
 
-### Updating to a new version
+<details>
+<summary><b>Troubleshooting</b></summary>
 
-Download the new version of the repository, then run `docker compose up -d --build`. Your data stays in the `falkordb-data` volume. For air-gapped machines, build a new installer with `./scripts/package_offline.sh` and run `./install.sh` again.
+- **Page does not open** — `docker compose ps` should show both services running/healthy; check `docker compose logs hivemind`.
+- **Port already allocated** — set `HIVEMIND_PORT=8080` in `.env` and open http://localhost:8080.
+- **Answers say "graph-only"** — expected offline; add `ANTHROPIC_API_KEY` only on machines with internet.
+- **Lost a workspace access link** — links cannot be recovered; store them safely.
+</details>
 
-### Troubleshooting
+## Integrations
 
-- **The page doesn't open:** run `docker compose ps`; both services should be "running" or "healthy". Check `docker compose logs hivemind`.
-- **"Port is already allocated":** set `HIVEMIND_PORT=8080` in `.env` and open http://localhost:8080.
-- **Lost a workspace's access link:** there is no recovery. The link is the key, so keep it somewhere safe.
-- **Answers say "graph-only":** that's normal offline. Add `ANTHROPIC_API_KEY` only if the machine has internet.
+| Tool | Direction | Setup |
+|---|---|---|
+| Slack | In (live) and out (`/hivemind`, alerts) | Copy the generated app manifest → api.slack.com/apps → *From a manifest* → paste the bot token and signing secret. Requests are verified with the signing secret (HMAC, 5-minute window); retries and bot posts are ignored. |
+| Slack history | In | Import recent history from channels the bot is in, or upload a Slack export `.zip` (parsed in the browser). |
+| Jira · Linear · GitHub | In | Point webhooks at the workspace's private URL `/hooks/<workspace>/<token>`; native payloads are recognised. |
+| Zapier · Make · n8n | In | POST `{"text", "author", "channel", "kind"}` to the same URL (reaches Teams, Notion, email and more). |
+| Slack · Teams · Discord · Google Chat | Out | Incoming-webhook URL; decisions are announced and answers/documents can be shared. Only these hosts are allowed. |
+| Claude Desktop · Cursor | Both | `mcp_server.py` exposes `ask_company`, `list_projects`, `write_prd`, `write_sprint_plan` and `add_to_brain`. |
 
-## Deploy online (FalkorDB Cloud + Render, both free)
+<details>
+<summary><b>MCP configuration</b></summary>
 
-1. **FalkorDB Cloud:** create a free instance at https://app.falkordb.cloud, then copy its host, port, username and password.
-2. **Render:** at https://dashboard.render.com choose **New → Blueprint** and pick this repo (it reads `render.yaml`).
-3. Set `FALKORDB_HOST`, `FALKORDB_PORT`, `FALKORDB_USERNAME`, `FALKORDB_PASSWORD`; optionally `ANTHROPIC_API_KEY` (AI answers, AI-written docs, AI entity extraction) and `GITHUB_TOKEN` (higher GitHub rate limit). Deploy.
-4. On first start the app builds the demo company in FalkorDB Cloud. Open the Render URL.
+In the app, choose **Claude Desktop (MCP)** in the sidebar to copy a ready-made configuration, or add:
 
-## Run locally (macOS)
-
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt -r requirements-dev.txt
-.venv/bin/python server.py            # http://localhost:8000, embedded FalkorDB
-.venv/bin/python -m pytest -q          # tests
-.venv/bin/python eval_qa.py            # accuracy check
+```json
+{"mcpServers": {"hivemind": {"command": "python3", "args": ["/path/to/mcp_server.py"],
+  "env": {"BRAIN_URL": "http://localhost:8000", "BRAIN_WORKSPACE": "your-workspace", "BRAIN_KEY": "your-access-key"}}}}
 ```
 
-Without `ANTHROPIC_API_KEY`, a rule-based planner calls the same graph tools and documents are assembled from templates, so everything still works. With a key, Claude Opus 5.5 plans the tool calls, writes the answers and documents, and spots new people, projects and tools in pasted text.
+Requires `pip install mcp` (1.x or 2.x).
+</details>
 
-Deep links: `/w/demo?ask=Who owns checkout?` or `/w/demo?write=sprint&project=project:checkout`.
+## Quality and testing
 
-## Files
-
-| File | Purpose |
+| Check | Result |
 |---|---|
-| `server.py` | FastAPI app: workspaces, ask (with live steps), generate, add/import/delete, map |
-| `brain_ingest.py` | Adds people, projects and tools; adds knowledge; links mentions, @handles and known technologies; detects decisions and replaces outdated ones; delete and undo; bulk import; demo build |
-| `brain_tools.py` | Agent tools: `search_knowledge`, `entity_profile`, `who_knows`, `decision_trail`, `run_cypher`, plus the trace |
-| `brain_agent.py` | Claude agent (tool runner) and the graph-only planner; suggested questions |
-| `brain_docs.py` | PRD and sprint plan generator |
-| `brain_insights.py` | Knowledge risks using `algo.betweenness`, `algo.pageRank`, `algo.WCC` |
-| `brain_github.py` | Import issues, pull requests and comments from a public GitHub repo |
-| `integrations.py` | Slack (events, slash command, history), incoming webhooks (Jira, Linear, GitHub, generic) and chat notifications (Slack, Discord, Teams, Google Chat) |
-| `workspaces.py` | Company registration and access keys (hashed) |
-| `mcp_server.py` | MCP server for Claude Desktop / Cursor |
-| `company_data.py` | Demo company "Lumen Pay" (fictional) |
-| `static/` | `landing.html` (home), `index.html` + `app.js` (workspace app), `vendor/` (bundled fonts, vis-network, JSZip), `img/` (photos) |
-| `Dockerfile`, `docker-compose.yml`, `scripts/` | Self-hosting, offline packaging and local run scripts |
-| `eval_qa.py`, `tests/` | Accuracy check and tests |
+| Accuracy (`python eval_qa.py`) | **10/10** demo questions answered with the required facts and sources (graph-only mode). Set `ANTHROPIC_API_KEY` to score Claude mode. |
+| Automated tests (`python -m pytest -q`) | **21 passing** — workspace isolation, access keys, deduplication, decision detection and reversal, deletion, cited answers, sprint ordering, PRD structure, graph algorithms, full API with streaming, Slack signature verification and slash command, Jira/Linear/GitHub/generic webhooks, notification host allowlist, secret masking. |
+| Scale | 400 items imported in under a second; above 450 nodes the graph view shows an overview and loads only the subgraph behind each answer. |
+| Real data | Importing `FalkorDB/falkordb-py` from GitHub produced 61 items from 18 contributors, expert rankings and a sprint plan from open issues. |
+| Offline | Both pages render with all external hosts blocked; no runtime requests leave the server. |
 
-## Limitations (honest)
+## Security and privacy
 
-- **Access is a secret link,** with no accounts. A lost link can't be recovered, and the setup screens say so. Real sign-in is the next step.
-- **Rate limits are kept in memory,** so they reset when the server restarts, and each server instance has its own.
-- **Without an AI key,** new items are linked only to people, projects and tools Hivemind already knows about (plus @mentions and about 100 common technologies). Decisions are found by phrases like "we decided" or "we're moving", and they can be undone with "Not a decision".
-- **Connection secrets** are stored as-is in the registry graph. Production should encrypt them or use a secrets manager. Slack setup is one app per company (a manifest is generated), not a one-click "Add to Slack" listing.
-- **GitHub import** reads the 100 most recently updated issues and pull requests and their recent comments, from public repos only.
+- Each company's data lives in its own FalkorDB graph; only SHA-256 hashes of access keys are stored.
+- Agent queries are read-only; Slack requests are signature-verified; outgoing notifications are restricted to known chat hosts.
+- Connection secrets are never returned to the browser in full, and webhook URLs can be regenerated.
+- Public endpoints are rate-limited and size-capped.
 
-## 3-minute demo script
+## Project structure
 
-1. **Problem (20s).** Company knowledge is scattered across docs, tickets, chat and GitHub. People can't find who knows what or why a choice was made, and every sprint plan starts from scratch.
-2. **Ask (40s).** In the demo, tap "Who should I ask about Kafka?". The steps appear live, then a cited answer, and the map lights up. Tomas *knows* Kafka even though Priya *owns* the Event Bus.
-3. **Risks (20s).** Tap "Where are our biggest knowledge risks?". Graph algorithms find key connectors, single points of failure and stalled work.
-4. **Plan (30s).** In **Write**, choose Sprint plan for Checkout Redesign. The blocker PAY-52 comes first, owners are filled in, and every line is cited.
-5. **Stays current (25s).** **+ Add info** → post the prefilled message from Maya. DEC-1 is marked outdated, and the Ledger sprint plan now includes the CockroachDB rollout.
-6. **Connect (20s).** Open **Connect apps**: show the Slack manifest, the webhook URL for Jira, Linear and GitHub, and channel notifications. Upload a Slack export zip and ask about it right away.
-7. **Your company (30s).** Create a workspace and import a GitHub repo (e.g. `FalkorDB/falkordb-py`). Within seconds it knows the contributors, the experts and the open work, and can write a sprint plan.
-8. **Close (15s).** One FalkorDB graph per company, cited answers and plans, and knowledge that stays current. Also available inside Claude through MCP.
+| Path | Description |
+|---|---|
+| `server.py` | FastAPI app: workspaces, ask (streamed), documents, ingestion, integrations, graph API |
+| `brain_agent.py` · `brain_tools.py` | Claude tool-use agent, graph-only planner and graph tools |
+| `brain_ingest.py` | Entity linking, decision detection and supersession, bulk import, demo data build |
+| `brain_docs.py` · `brain_insights.py` | PRD/sprint generation · graph-algorithm insights |
+| `brain_github.py` · `integrations.py` | GitHub import · Slack, webhooks and chat notifications |
+| `workspaces.py` · `graph_db.py` | Tenant registry and access keys · FalkorDB connection (server or embedded) |
+| `mcp_server.py` | MCP server for Claude Desktop and Cursor |
+| `static/` | Landing page, workspace app and bundled assets |
+| `tests/` · `eval_qa.py` | Test suite · accuracy evaluation |
+| `Dockerfile` · `docker-compose.yml` · `scripts/` · `render.yaml` | Self-hosting, offline packaging and cloud deployment |
+| `docs/` | Screenshots and the [demo script](docs/DEMO_SCRIPT.md) |
+| `track1_blast_radius/` | Earlier Track 01 prototype, kept for reference (not part of this submission) |
 
-Before recording: menu (···) → Reset data in the demo.
+## Limitations and roadmap
+
+| Today | Next |
+|---|---|
+| Workspace access is a private link; lost links cannot be recovered. | SSO sign-in and roles. |
+| Connection secrets are stored unencrypted in the registry graph. | Encryption at rest or a secrets manager. |
+| Rate limits are in memory, per server instance. | Shared limits in FalkorDB or Redis. |
+| Without an AI key, linking relies on known names, @mentions and a technology list. | Local embedding model for semantic linking offline. |
+| Slack setup is one app per company via a generated manifest. | One-click "Add to Slack" distribution. |
+| GitHub import reads the 100 most recently updated issues/PRs of public repos. | Pagination, private repos, and Confluence/Notion connectors. |
+
+## Credits
+
+Built for the **WeMakeDevs × FalkorDB Hackathon** by **Utkarsh Sonthalia**.
+Powered by [FalkorDB](https://www.falkordb.com). Graph rendering by [vis-network](https://visjs.github.io/vis-network/). Fonts: Fraunces, Inter and JetBrains Mono (SIL Open Font License). Photos from [Unsplash](https://unsplash.com). The demo company, Lumen Pay, and all its people and data are fictional.
