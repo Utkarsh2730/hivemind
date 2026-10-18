@@ -1,0 +1,78 @@
+name: Test and package
+
+# Builds the Docker setup, tests it, builds the offline bundle, then installs that bundle from scratch
+# (as a judge would) and tests it again. On a published release, the bundle is attached to the release.
+on:
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test-and-package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports: ["6390:6379"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Unit tests and accuracy check (against a FalkorDB server)
+        env:
+          FALKORDB_HOST: localhost
+          FALKORDB_PORT: "6390"
+        run: |
+          pip install -q -r requirements.txt pytest
+          python -m pytest -q
+          python eval_qa.py --graph
+
+      - name: Start FalkorDB + Hivemind with Docker Compose
+        run: docker compose up -d --build
+
+      - name: Smoke test (Docker Compose)
+        run: ./scripts/smoke_test.sh http://localhost:8000
+
+      - name: Logs on failure
+        if: failure()
+        run: docker compose logs
+
+      - name: Build offline bundle
+        run: |
+          docker compose down -v
+          ./scripts/package_offline.sh
+          ls -lh offline/
+
+      - name: Install the bundle from scratch, like a judge would
+        run: |
+          docker image rm -f hivemind:latest falkordb/falkordb:latest
+          mkdir -p /tmp/judge && cd /tmp/judge
+          tar -xzf "$GITHUB_WORKSPACE/offline/hivemind-offline.tar.gz"
+          cd bundle && ./install.sh
+          "$GITHUB_WORKSPACE/scripts/smoke_test.sh" http://localhost:8000
+
+      - name: Bundle logs on failure
+        if: failure()
+        run: cd /tmp/judge/bundle && docker compose logs || true
+
+      - name: Upload bundle as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hivemind-offline
+          path: offline/hivemind-offline.tar.gz
+          retention-days: 14
+
+      - name: Attach bundle to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" offline/hivemind-offline.tar.gz --clobber
