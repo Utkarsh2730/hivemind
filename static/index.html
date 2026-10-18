@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Company Brain</title>
+<title>Hivemind</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
@@ -237,7 +237,7 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
 
 <div class="shell" id="shell">
   <aside class="side">
-    <a href="/" class="brand"><span class="mark"><svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7h8M7 9l4 6M17 9l-4 6"/></svg></span><span>Company Brain</span></a>
+    <a href="/" class="brand"><span class="mark"><svg viewBox="0 0 24 24"><path d="M12 2.5 20.2 7.2v9.6L12 21.5 3.8 16.8V7.2z"/><circle cx="12" cy="9" r="1.6"/><circle cx="8.6" cy="14.4" r="1.6"/><circle cx="15.4" cy="14.4" r="1.6"/><path d="M12 10.6v0M10.5 13.3l.6-.9M13.5 13.3l-.6-.9M10.3 14.4h3.4"/></svg></span><span>Hivemind</span></a>
     <div class="wsbox"><div class="lbl">Workspace</div><div class="ws" id="wsname">&hellip;</div></div>
     <nav class="nav">
       <button class="on" data-view="ask"><svg class="i"><use href="#i-ask"/></svg>Ask</button>
@@ -371,11 +371,11 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
 
     <div class="sec card">
       <h4>Slack</h4>
-      <p class="d">Messages from channels the app is added to are captured automatically, and <span class="mono">/brain &lt;question&gt;</span> returns cited answers in Slack.</p>
+      <p class="d">Messages from channels the app is added to are captured automatically, and <span class="mono">/hivemind &lt;question&gt;</span> returns cited answers in Slack.</p>
       <ol class="muted" style="font-size:13px;line-height:1.75;padding-left:18px;margin:0 0 12px">
         <li><a href="#" id="c-manifest">Copy the app manifest</a>, then on <a href="https://api.slack.com/apps?new_app=1" target="_blank" rel="noopener">api.slack.com/apps</a> select <b>Create New App → From a manifest</b>.</li>
         <li>Install the app, then paste the <b>Bot User OAuth Token</b> and <b>Signing Secret</b>.</li>
-        <li>Add <b>@Company Brain</b> to the channels it should learn from.</li>
+        <li>Add <b>@Hivemind</b> to the channels it should learn from.</li>
       </ol>
       <div class="row"><div><label class="f">Bot token</label><input id="c-token" placeholder="xoxb-..." autocomplete="off"></div>
         <div><label class="f">Signing secret</label><input id="c-secret" type="password" placeholder="••••••" autocomplete="off"></div></div>
@@ -430,6 +430,6 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
   <div style="display:flex;gap:8px"><button class="btn" id="mcpcopy">Copy configuration</button><button class="ghost" id="mcpclose">Close</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=hivemind-1"></script>
 </body>
 </html>

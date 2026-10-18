@@ -1,4 +1,4 @@
-"""Company Brain web app: a public demo company plus private workspaces any company can register.
+"""Hivemind web app: a public demo company plus private workspaces any company can register.
 
 Local:  .venv/bin/python server.py   then open http://localhost:8000
 Online: the host sets PORT; the app listens on 0.0.0.0 (see render.yaml).
@@ -36,7 +36,7 @@ async def lifespan(app):
     yield
 
 
-app = FastAPI(title="Company Brain", lifespan=lifespan)
+app = FastAPI(title="Hivemind", lifespan=lifespan)
 HERE = os.path.dirname(os.path.abspath(__file__))
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
@@ -441,7 +441,7 @@ def test_notify(request: Request, w: dict = Depends(ws)):
     if not s.get("notify_url"):
         raise HTTPException(400, "Add a channel webhook URL first.")
     try:
-        integrations.send(s["notify_url"], f"Company Brain for **{w['name']}** is connected. Decisions and shared "
+        integrations.send(s["notify_url"], f"Hivemind for **{w['name']}** is connected. Decisions and shared "
                                            f"answers will appear here.\n{_public_base(request)}/w/{w['slug']}")
     except Exception as e:
         raise HTTPException(400, f"The chat app rejected the message: {e}")
@@ -565,7 +565,7 @@ async def slack_command(slug: str, request: Request):
     question = (form.get("text") or "").strip()[:400]
     response_url = form.get("response_url", "")
     if not question:
-        return JSONResponse({"response_type": "ephemeral", "text": "Ask a question, e.g. `/brain who owns checkout?`"})
+        return JSONResponse({"response_type": "ephemeral", "text": "Ask a question, e.g. `/hivemind who owns checkout?`"})
     if urllib.parse.urlparse(response_url).hostname not in ("hooks.slack.com",):
         raise HTTPException(400, "Bad response_url.")
     base = _public_base(request)
@@ -579,7 +579,7 @@ async def slack_command(slug: str, request: Request):
         srcs = "\n".join(f"• [{c['key']}] {c['title']} ({c.get('author') or c['kind']}, {c.get('date') or ''})"
                          for c in r["citations"][:6])
         text = integrations.to_chat_text(f"**Q: {question}**\n{r['answer']}" + (f"\n\n**Sources**\n{srcs}" if srcs else "")
-                                         + f"\n<{base}/w/{slug}?ask={urllib.parse.quote(question)}|Open in Company Brain>", "slack")
+                                         + f"\n<{base}/w/{slug}?ask={urllib.parse.quote(question)}|Open in Hivemind>", "slack")
         try:
             integrations._post_json(response_url, {"response_type": "in_channel", "text": text[:39000]})
         except Exception as e:

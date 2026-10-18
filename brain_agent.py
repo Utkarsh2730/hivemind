@@ -13,7 +13,7 @@ from graph_db import get_graph
 
 CITE_RE = re.compile(r"\[((?:[A-Z]{2,5})-\d+)\]")
 
-SYSTEM = """You are the Company Brain for {company}. Company knowledge (people, teams, projects, systems,
+SYSTEM = """You are the Hivemind for {company}. Company knowledge (people, teams, projects, systems,
 docs, tickets, chat messages, meeting notes and decisions) lives in a FalkorDB graph.
 
 Rules:

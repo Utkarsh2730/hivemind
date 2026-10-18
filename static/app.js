@@ -1,4 +1,4 @@
-// Company Brain workspace page: ask, write PRD / sprint plan, add info, and the company map.
+// Hivemind workspace page: ask, write PRD / sprint plan, add info, and the company map.
 const $ = id => document.getElementById(id);
 const esc = s => (s ?? '').toString().replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -156,7 +156,7 @@ document.addEventListener('click', async e => {
   if (act) {
     e.stopPropagation();
     const key = act.dataset.key, nd = act.dataset.act === 'nd';
-    if (!confirm(nd ? `Mark ${key} as not a decision? Anything it marked outdated becomes current again.` : `Remove ${key} from the brain?`)) return;
+    if (!confirm(nd ? `Mark ${key} as not a decision? Anything it marked outdated becomes current again.` : `Remove ${key} from Hivemind?`)) return;
     try {
       const r = (await api('/delete', { keys: [key] })).results[0];
       if (r.error) { toast(esc(r.error)); return; }
@@ -390,12 +390,12 @@ $('files').onchange = e => { importFiles([...e.target.files]); e.target.value = 
 ['dragleave', 'drop'].forEach(ev => $('drop').addEventListener(ev, e => { e.preventDefault(); $('drop').classList.remove('over'); }));
 $('drop').addEventListener('drop', e => importFiles([...e.dataTransfer.files]));
 function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); }
-$('tpl-csv').onclick = e => { e.preventDefault(); download('company-brain-template.csv',
+$('tpl-csv').onclick = e => { e.preventDefault(); download('hivemind-template.csv',
   'kind,title,text,author,date,channel,status,assignee\n' +
   'meeting,Architecture review,"We decided to use Postgres for billing because the team knows it well.",Priya Sharma,2026-03-04,,,\n' +
   'message,,"Postgres replicas are lagging again, ping me if you see timeouts.",Arjun Mehta,2026-04-11,#infra,,\n' +
   'ticket,Fix replica lag,"Billing reads time out when replicas lag.",Priya Sharma,2026-04-12,,in_progress,Arjun Mehta\n', 'text/csv'); };
-$('tpl-json').onclick = e => { e.preventDefault(); download('company-brain-template.json', JSON.stringify({
+$('tpl-json').onclick = e => { e.preventDefault(); download('hivemind-template.json', JSON.stringify({
   people: [{ name: 'Priya Sharma', role: 'Engineering Manager', team: 'Platform' }, { name: 'Arjun Mehta', role: 'Backend Engineer', team: 'Payments' }],
   projects: [{ name: 'Billing', team: 'Payments', lead: 'Arjun Mehta', uses: ['Postgres', 'Stripe'] }],
   systems: [{ name: 'Postgres', aliases: ['postgresql', 'pg'] }, { name: 'Stripe' }],
@@ -409,7 +409,7 @@ $('gh-go').onclick = async () => {
   try {
     const r = await api('/import/github', { repo });
     setRes('gh-res', `Imported ${r.added} items from ${esc(r.repo)} into project <b>${esc(r.project)}</b>` +
-      (r.decisions ? `, found ${r.decisions} decisions` : '') + `. The brain now knows ${r.counts.Person || 0} people.`, true);
+      (r.decisions ? `, found ${r.decisions} decisions` : '') + `. Hivemind now knows ${r.counts.Person || 0} people.`, true);
     $('gh-repo').value = ''; await refresh();
   } catch (e) { if (e.message !== 'locked') setRes('gh-res', esc(e.message)); }
   $('gh-go').disabled = false;
@@ -452,7 +452,7 @@ $('c-save-slack').onclick = () => {
   if ($('c-secret').value.trim()) body.slack_signing_secret = $('c-secret').value.trim();
   if (!Object.keys(body).length) { setRes('c-slack-res', 'Paste the bot token and signing secret first.'); return; }
   $('c-token').value = ''; $('c-secret').value = '';
-  saveConn(body, 'c-slack-res', 'Slack saved. Invite @Company Brain to channels, then try /brain in Slack.');
+  saveConn(body, 'c-slack-res', 'Slack saved. Invite @Hivemind to channels, then try /hivemind in Slack.');
 };
 $('c-import-slack').onclick = async () => {
   setRes('c-slack-res', '<span class="spin"></span>Reading recent messages from channels the bot is in&hellip;', true);
@@ -525,7 +525,7 @@ const shareBtn = () => META && META.notify ? `<button class="ghost" data-share="
 
 // ---------- menu actions + gate ----------
 $('mcp').onclick = () => {
-  const cfg = { mcpServers: { 'company-brain': { command: 'python3', args: ['/path/to/mcp_server.py'],
+  const cfg = { mcpServers: { 'hivemind': { command: 'python3', args: ['/path/to/mcp_server.py'],
     env: { BRAIN_URL: location.origin, BRAIN_WORKSPACE: SLUG, BRAIN_KEY: META && META.workspace.demo ? '' : getKey() } } } };
   $('mcpcfg').textContent = JSON.stringify(cfg, null, 2); $('mcpmodal').classList.add('open');
 };
@@ -553,7 +553,7 @@ $('gate-go').onclick = () => {
 async function refresh() {
   try { META = await api('/meta'); } catch (e) { if (e.message !== 'locked') $('out').innerHTML = `<div class="card">${esc(e.message)}</div>`; return false; }
   const m = META;
-  document.title = m.workspace.name + ' · Company Brain';
+  document.title = m.workspace.name + ' · Hivemind';
   $('wsname').innerHTML = esc(m.workspace.name.replace(' (demo)', '')) + (m.workspace.demo ? '<span class="tag">Demo</span>' : '');
   $('mode').textContent = (m.claude ? 'Claude' : 'Graph-only') + ' · ' + m.backend;
   $('mode').title = m.claude ? 'Answers are planned and written by Claude using graph tools' : 'Answers come directly from graph queries (no AI key configured)';

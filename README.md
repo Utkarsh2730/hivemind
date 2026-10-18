@@ -1,10 +1,10 @@
-# Company Brain — Track 03 (WeMakeDevs × FalkorDB)
+# Hivemind — Track 03 (WeMakeDevs × FalkorDB)
 
 **Any company can turn its docs, tickets, meeting notes, chats and GitHub repos into one connected FalkorDB graph, then ask who owns what, who actually knows what, and why decisions were made, and generate a PRD or sprint plan from it. Every answer and every line is linked to its source.**
 
 **Live demo:** [link goes here after deploy] — open the Lumen Pay demo, or create your own workspace. Nothing to install.
 
-![Company Brain landing page](docs/landing.png)
+![Hivemind landing page](docs/landing.png)
 
 ![A cited answer with the related part of the knowledge graph highlighted](docs/ask.png)
 
@@ -17,10 +17,10 @@
 1. **Register your company.** You get a private workspace with its own FalkorDB graph and a secret access link.
 2. **Bring your knowledge.** Paste docs, meeting notes, tickets and chats; upload `.txt`, `.md`, `.csv` or `.json`; **import a GitHub repo**; or **connect your tools** (below). Everything is linked to the right people, projects and tools automatically.
 3. **Connect Slack and other platforms, in both directions.**
-   - **Slack app:** messages in channels the bot is in flow in live, `/brain <question>` answers in Slack with sources, and recent channel history can be imported. No Slack app? Upload a Slack export `.zip`.
+   - **Slack app:** messages in channels the bot is in flow in live, `/hivemind <question>` answers in Slack with sources, and recent channel history can be imported. No Slack app? Upload a Slack export `.zip`.
    - **Jira, Linear, GitHub webhooks,** plus anything via Zapier, Make or n8n (Teams, Notion, Google Docs, email): one private webhook URL per company.
    - **Notifications out** to Slack, Discord, Microsoft Teams or Google Chat: new and replaced decisions are announced, and any answer, PRD or sprint plan can be sent to the channel.
-4. **Ask anything.** "Why did we choose Postgres?", "Who should I ask about Kafka?", "Why is checkout blocked?" The brain follows the connections, shows each step live, cites its sources, and highlights the path on the map.
+4. **Ask anything.** "Why did we choose Postgres?", "Who should I ask about Kafka?", "Why is checkout blocked?" Hivemind follows the connections, shows each step live, cites its sources, and highlights the path on the map.
 5. **See who actually knows what.** Expertise comes from evidence (who wrote about it, who was assigned it, who colleagues thank), not from org charts, and it's shown next to formal ownership.
 6. **Write a PRD or sprint plan** for any project in one click. Blockers are scheduled first, owners come from assignees or whoever has hands-on experience, risks are flagged, and every line is cited. Download as Markdown or save as PDF.
 7. **Find knowledge risks** with FalkorDB's graph algorithms: key connectors, single points of failure, stalled work, and knowledge nobody is linked to.
@@ -74,7 +74,7 @@ Open **Connect apps** in a workspace. Each company connects its own tools; the s
 
 | Tool | Direction | How |
 |---|---|---|
-| Slack | In (live) + `/brain` answers | Copy the generated app manifest → api.slack.com/apps → *From a manifest* → install, then paste the bot token and signing secret. Every request is checked against the signing secret (HMAC, 5-minute window); Slack's retries and bot posts are ignored. |
+| Slack | In (live) + `/hivemind` answers | Copy the generated app manifest → api.slack.com/apps → *From a manifest* → install, then paste the bot token and signing secret. Every request is checked against the signing secret (HMAC, 5-minute window); Slack's retries and bot posts are ignored. |
 | Slack history | In | "Import recent channel history" (channels the bot is in), or upload a Slack export `.zip`, which is parsed in the browser |
 | Jira, Linear, GitHub | In | Point their webhooks at the private URL `/hooks/<workspace>/<token>`. Their native payloads are recognised. |
 | Zapier, Make, n8n | In | POST `{"text","author","channel","kind"}` (or `{"items":[...]}`) to the same URL; this reaches Teams, Notion, Google Docs, email and more |
@@ -85,7 +85,7 @@ Secrets are stored on the workspace's registry node, are never returned to the b
 ## Quality
 
 - **Accuracy check** (`python eval_qa.py`): 10 questions about the demo company, where each answer must contain the right facts and cite the right sources. **Graph-only mode: 10/10.** Run it with `ANTHROPIC_API_KEY` set to score Claude mode.
-- **Tests** (`python -m pytest -q`): 21 tests. 9 cover connections: Slack signature checks (valid, wrong, expired), live Slack messages becoming knowledge and announcing decisions, `/brain` answering in channel, Jira, Linear, GitHub and generic webhooks, the chat-host allowlist, hidden secrets, and demo protection. The other 12 cover company isolation, access keys, people deduplication, linking without AI, decisions not over-detected, replace-and-undo of decisions, deletion, cited answers, sprint ordering, PRD sections, the graph algorithms, and the full API including live steps.
+- **Tests** (`python -m pytest -q`): 21 tests. 9 cover connections: Slack signature checks (valid, wrong, expired), live Slack messages becoming knowledge and announcing decisions, `/hivemind` answering in channel, Jira, Linear, GitHub and generic webhooks, the chat-host allowlist, hidden secrets, and demo protection. The other 12 cover company isolation, access keys, people deduplication, linking without AI, decisions not over-detected, replace-and-undo of decisions, deletion, cited answers, sprint ordering, PRD sections, the graph algorithms, and the full API including live steps.
 - **Scale:** importing 400 items takes under a second. Above 450 nodes the map shows an overview and loads just the part behind each answer.
 
 ## Use it from Claude Desktop (MCP)
@@ -93,7 +93,7 @@ Secrets are stored on the workspace's registry node, are never returned to the b
 `mcp_server.py` exposes `ask_company`, `list_projects`, `write_prd`, `write_sprint_plan` and `add_to_brain`. In the app, choose menu (···) → **Use in Claude Desktop** to copy a ready-made config, or write it yourself:
 
 ```json
-{"mcpServers": {"company-brain": {"command": "python3", "args": ["/path/to/mcp_server.py"],
+{"mcpServers": {"hivemind": {"command": "python3", "args": ["/path/to/mcp_server.py"],
   "env": {"BRAIN_URL": "https://your-site.onrender.com", "BRAIN_WORKSPACE": "your-slug", "BRAIN_KEY": "your-key"}}}}
 ```
 
@@ -141,7 +141,7 @@ Deep links: `/w/demo?ask=Who owns checkout?` or `/w/demo?write=sprint&project=pr
 
 - **Access is a secret link,** with no accounts. A lost link can't be recovered, and the setup screens say so. Real sign-in is the next step.
 - **Rate limits are kept in memory,** so they reset when the server restarts, and each server instance has its own.
-- **Without an AI key,** new items are linked only to people, projects and tools the brain already knows about (plus @mentions and about 100 common technologies). Decisions are found by phrases like "we decided" or "we're moving", and they can be undone with "Not a decision".
+- **Without an AI key,** new items are linked only to people, projects and tools Hivemind already knows about (plus @mentions and about 100 common technologies). Decisions are found by phrases like "we decided" or "we're moving", and they can be undone with "Not a decision".
 - **Connection secrets** are stored as-is in the registry graph. Production should encrypt them or use a secrets manager. Slack setup is one app per company (a manifest is generated), not a one-click "Add to Slack" listing.
 - **GitHub import** reads the 100 most recently updated issues and pull requests and their recent comments, from public repos only.
 

@@ -1,9 +1,9 @@
-"""MCP server for Company Brain: use a company's brain from Claude Desktop, Cursor or any MCP client.
+"""MCP server for Hivemind: use a company's brain from Claude Desktop, Cursor or any MCP client.
 
-It talks to a running Company Brain site over HTTP, so it works with the hosted version.
+It talks to a running Hivemind site over HTTP, so it works with the hosted version.
 
 Setup (Claude Desktop, claude_desktop_config.json):
-  {"mcpServers": {"company-brain": {"command": "python3", "args": ["/path/to/mcp_server.py"],
+  {"mcpServers": {"hivemind": {"command": "python3", "args": ["/path/to/mcp_server.py"],
      "env": {"BRAIN_URL": "https://your-site.onrender.com", "BRAIN_WORKSPACE": "your-workspace-slug",
              "BRAIN_KEY": "your-private-key"}}}}
 Requires: pip install mcp
@@ -22,8 +22,8 @@ BASE = os.environ.get("BRAIN_URL", "http://localhost:8000").rstrip("/")
 SLUG = os.environ.get("BRAIN_WORKSPACE", "demo")
 KEY = os.environ.get("BRAIN_KEY", "")
 
-server = _Server("company-brain", instructions=(
-    "Company Brain holds this company's people, teams, projects, tools, docs, tickets, chats and decisions as a "
+server = _Server("hivemind", instructions=(
+    "Hivemind holds this company's people, teams, projects, tools, docs, tickets, chats and decisions as a "
     "knowledge graph. Use ask_company for questions (who owns/knows what, why decisions were made), "
     "write_prd / write_sprint_plan for planning documents, and add_to_brain to record new knowledge. "
     "Keep the [KEY] citations in answers so people can check the sources."))
@@ -42,9 +42,9 @@ def _call(path: str, body: dict | None = None) -> dict:
             detail = json.loads(e.read().decode()).get("detail")
         except Exception:
             detail = None
-        raise RuntimeError(detail if isinstance(detail, str) else f"Company Brain returned HTTP {e.code}")
+        raise RuntimeError(detail if isinstance(detail, str) else f"Hivemind returned HTTP {e.code}")
     except urllib.error.URLError as e:
-        raise RuntimeError(f"Could not reach Company Brain at {BASE}: {e.reason}")
+        raise RuntimeError(f"Could not reach Hivemind at {BASE}: {e.reason}")
 
 
 def _with_sources(text: str, citations: list) -> str:
@@ -56,7 +56,7 @@ def _with_sources(text: str, citations: list) -> str:
 
 @server.tool()
 def ask_company(question: str) -> str:
-    """Ask the company brain a question, e.g. who owns a project, who knows a system, why a decision was made,
+    """Ask Hivemind a question, e.g. who owns a project, who knows a system, why a decision was made,
     what is blocked, or where the knowledge risks are. Returns an answer with [KEY] citations and the sources."""
     r = _call("/ask", {"question": question[:400]})
     return _with_sources(r["answer"], r.get("citations", []))

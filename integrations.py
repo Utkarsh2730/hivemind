@@ -1,11 +1,11 @@
-"""Connections between a company brain and the tools the company already uses.
+"""Connections between a Hivemind workspace and the tools the company already uses.
 
 In:
   - Slack app (Events API): messages in channels the bot is in are added as they happen.
   - Slack history import (Web API) and Slack export ZIP (parsed in the browser).
   - Incoming webhook per workspace: Jira, Linear, GitHub, or anything via Zapier / Make / n8n (generic JSON).
 Out:
-  - Slack slash command: /brain <question> answers in Slack with sources.
+  - Slack slash command: /hivemind <question> answers in Slack with sources.
   - Notifications to Slack, Discord, Microsoft Teams or Google Chat when decisions are made or replaced,
     and on demand ("Send to channel") for answers, PRDs and sprint plans.
 
@@ -167,7 +167,7 @@ def notify_change(slug: str, change: dict, link: str = "") -> None:
     if change.get("superseded"):
         msg += f"\nThis replaces {', '.join(change['superseded'])}, which is now marked outdated."
     msg += f"\nSource: [{change['source']}]" + (f" · {link}" if link else "")
-    threading.Thread(target=notify, args=(slug, msg, "Company Brain", "decision"), daemon=True).start()
+    threading.Thread(target=notify, args=(slug, msg, "Hivemind", "decision"), daemon=True).start()
 
 
 # ---------------- Slack ----------------
@@ -256,11 +256,11 @@ def slack_history(token: str, max_channels: int = 5, per_channel: int = 150) -> 
 def slack_manifest(base_url: str, slug: str, company: str) -> dict:
     """A Slack app manifest with this workspace's URLs filled in (Slack: Create app -> From a manifest)."""
     return {
-        "display_information": {"name": "Company Brain", "description": f"Ask {company}'s company brain",
+        "display_information": {"name": "Hivemind", "description": f"Ask {company}'s Hivemind",
                                 "background_color": "#0b0b12"},
-        "features": {"bot_user": {"display_name": "Company Brain", "always_online": True},
-                     "slash_commands": [{"command": "/brain", "url": f"{base_url}/slack/{slug}/command",
-                                         "description": "Ask the company brain", "usage_hint": "Who owns checkout?",
+        "features": {"bot_user": {"display_name": "Hivemind", "always_online": True},
+                     "slash_commands": [{"command": "/hivemind", "url": f"{base_url}/slack/{slug}/command",
+                                         "description": "Ask Hivemind", "usage_hint": "Who owns checkout?",
                                          "should_escape": False}]},
         "oauth_config": {"scopes": {"bot": ["commands", "channels:history", "channels:read", "users:read",
                                             "chat:write"]}},

@@ -25,7 +25,7 @@ def parse_repo(text: str) -> tuple[str, str]:
 
 def _get(path: str):
     req = urllib.request.Request(API + path, headers={"Accept": "application/vnd.github+json",
-                                                      "User-Agent": "company-brain"})
+                                                      "User-Agent": "hivemind"})
     if os.environ.get("GITHUB_TOKEN"):
         req.add_header("Authorization", "Bearer " + os.environ["GITHUB_TOKEN"])
     try:
