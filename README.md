@@ -4,6 +4,8 @@
 
 **Live demo:** [link goes here after deploy] — open the Lumen Pay demo, or create your own workspace. Nothing to install.
 
+**Run it yourself, even with no internet:** see [How to use Hivemind offline](#how-to-use-hivemind-offline) — one command with Docker.
+
 ![Hivemind landing page](docs/landing.png)
 
 ![A cited answer with the related part of the knowledge graph highlighted](docs/ask.png)
@@ -99,30 +101,112 @@ Secrets are stored on the workspace's registry node, are never returned to the b
 
 It needs `pip install mcp`, and works with mcp 1.x and 2.x.
 
-## Self-host or run offline (Docker)
+## How to use Hivemind offline
 
-Hivemind runs entirely on your own machine or server. It needs no cloud accounts, and nothing is loaded from the internet at runtime: fonts, the graph library and photos are bundled in `static/vendor` and `static/img`.
+Hivemind can run entirely on your own computer or company server. It needs no cloud accounts and no internet while it runs: the fonts, graph library and photos are bundled with the app, and the database (FalkorDB) runs next to it.
+
+### What works offline
+
+| Works with no internet | Needs internet (optional) |
+|---|---|
+| Asking questions with cited answers (graph-only mode) | AI-written answers and documents (Claude) |
+| PRDs and sprint plans | Importing a GitHub repository |
+| Knowledge risks (graph algorithms) | Slack app, `/hivemind` command, Slack history import |
+| Adding knowledge: paste, upload `.txt` `.md` `.csv` `.json`, Slack export `.zip` | Notifications to Slack, Discord, Teams or Google Chat |
+| Creating workspaces, the demo company, the knowledge graph view | Jira, Linear or GitHub webhooks (they need to reach your server) |
+
+### Option A — A computer with Docker (recommended)
+
+**1. Install Docker** — [Docker Desktop](https://www.docker.com/products/docker-desktop/) on Mac or Windows, or Docker Engine with the compose plugin on Linux. Start it.
+
+**2. Get Hivemind** — download this repository (green **Code** button → **Download ZIP**, then unzip) or clone it:
 
 ```bash
-docker compose up -d          # FalkorDB + Hivemind
-open http://localhost:8000    # app; FalkorDB's own browser is on http://localhost:3000
+git clone https://github.com/Utkarsh2730/hivemind.git
+cd hivemind
 ```
 
-- Data is stored in the `falkordb-data` Docker volume (append-only file, so it survives restarts). Stop with `docker compose down`; add `-v` to also delete the data.
-- Optional settings go in a `.env` file next to `docker-compose.yml`: `ANTHROPIC_API_KEY` (AI answers), `HIVEMIND_PORT` (default 8000), `PUBLIC_URL` (for Slack/webhook URLs behind a reverse proxy).
-- Without internet, everything works in graph-only mode. Only the optional features that talk to outside services need a connection: Claude, GitHub import, Slack, and chat notifications.
-
-**Machines with no internet at all (air-gapped):**
+**3. Start it** (the first run downloads the FalkorDB image and builds the app; after that no internet is needed):
 
 ```bash
-./scripts/package_offline.sh   # on a machine with Docker + internet -> offline/hivemind-offline.tar.gz
-# copy the file over, then on the offline machine:
-tar -xzf hivemind-offline.tar.gz && cd bundle && ./install.sh
+docker compose up -d
 ```
 
-The archive contains both Docker images, the compose file and an installer that loads the images and starts Hivemind.
+**4. Open it** at **http://localhost:8000**. Try the Lumen Pay demo, or click **Create a workspace** and save the private access link it gives you. FalkorDB's own graph browser is at http://localhost:3000.
 
-**macOS without Docker:** `./scripts/run_local.sh` uses embedded FalkorDB. It needs internet once to install Python packages, then runs offline.
+**5. Everyday use**
+
+| To... | Run |
+|---|---|
+| Stop Hivemind (data is kept) | `docker compose stop` |
+| Start it again | `docker compose start` |
+| See whether it is running | `docker compose ps` |
+| See logs if something looks wrong | `docker compose logs hivemind` |
+| Remove the containers, keep the data | `docker compose down` |
+| Remove everything, including all data | `docker compose down -v` |
+
+**6. Let colleagues use it** — other computers on the same network can open `http://<this-computer's-IP>:8000`. Share each workspace's private access link only with your team.
+
+**7. Optional settings** — create a file named `.env` next to `docker-compose.yml`:
+
+```bash
+HIVEMIND_PORT=8000            # change if port 8000 is taken
+ANTHROPIC_API_KEY=            # only if you have internet and want AI answers
+PUBLIC_URL=                   # e.g. https://hivemind.yourcompany.com when behind a reverse proxy
+```
+
+Then run `docker compose up -d` again.
+
+### Option B — A machine with no internet at all (air-gapped)
+
+On a computer that **has** Docker and internet, build a single installer file:
+
+```bash
+./scripts/package_offline.sh
+# creates offline/hivemind-offline.tar.gz (both Docker images + installer)
+```
+
+Copy that file to the offline machine (USB drive, internal file share), then on the offline machine:
+
+```bash
+tar -xzf hivemind-offline.tar.gz
+cd bundle
+./install.sh
+```
+
+The installer loads the images, starts Hivemind and tells you when **http://localhost:8000** is ready. Use the same everyday commands as Option A, run inside the `bundle` folder.
+
+### Option C — A Mac without Docker
+
+```bash
+./scripts/run_local.sh
+```
+
+The first run needs internet to install Python packages; after that it runs offline with an embedded FalkorDB database stored in `data/`. Stop it with `Ctrl+C`.
+
+### Back up and restore your data (Docker)
+
+```bash
+# Back up: save the database and copy it out of the container
+docker compose exec falkordb redis-cli BGSAVE
+docker compose cp falkordb:/data ./hivemind-backup
+
+# Restore: copy a backup back in and restart the database
+docker compose stop falkordb
+docker compose cp ./hivemind-backup/. falkordb:/data
+docker compose start falkordb
+```
+
+### Updating to a new version
+
+Download the new version of the repository, then run `docker compose up -d --build`. Your data stays in the `falkordb-data` volume. For air-gapped machines, build a new installer with `./scripts/package_offline.sh` and run `./install.sh` again.
+
+### Troubleshooting
+
+- **The page doesn't open:** run `docker compose ps`; both services should be "running" or "healthy". Check `docker compose logs hivemind`.
+- **"Port is already allocated":** set `HIVEMIND_PORT=8080` in `.env` and open http://localhost:8080.
+- **Lost a workspace's access link:** there is no recovery. The link is the key, so keep it somewhere safe.
+- **Answers say "graph-only":** that's normal offline. Add `ANTHROPIC_API_KEY` only if the machine has internet.
 
 ## Deploy online (FalkorDB Cloud + Render, both free)
 
