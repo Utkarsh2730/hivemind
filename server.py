@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import brain_agent
+import brain_docs
 import brain_ingest
 import company_data as cd
 import workspaces
@@ -25,7 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
 # ---------- public-demo protection ----------
-LIMITS = {"ask": (8, 60), "write": (20, 60), "import": (4, 60), "reset": (2, 60), "create": (3, 600)}
+LIMITS = {"generate": (4, 60), "ask": (8, 60), "write": (20, 60), "import": (4, 60), "reset": (2, 60), "create": (3, 600)}
 MAX_SOURCES, MAX_ENTITIES = 2000, 1500
 _hits = defaultdict(deque)
 _locks = defaultdict(threading.Lock)
@@ -60,6 +61,13 @@ def ws(slug: str, x_workspace_key: str = Header(default="")) -> dict:
 # ---------- models ----------
 class NewWorkspace(BaseModel):
     name: str = Field(min_length=2, max_length=60)
+
+
+class Generate(BaseModel):
+    kind: str = Field(pattern="^(prd|sprint)$")
+    project: str = Field(max_length=80)
+    goal: str = Field(default="", max_length=300)
+    weeks: int = Field(default=2, ge=1, le=4)
 
 
 class Ask(BaseModel):
@@ -133,6 +141,7 @@ def meta(w: dict = Depends(ws)):
         people = g.ro_query("MATCH (p:Person) RETURN p.key, p.name, p.role ORDER BY p.name").result_set
         counts = brain_ingest.counts()
         questions = cd.DEMO_QUESTIONS if w["demo"] else brain_agent.suggestions()
+        projects = brain_docs.projects()
     return {
         "workspace": w,
         "claude": brain_agent.has_credentials(),
@@ -141,6 +150,7 @@ def meta(w: dict = Depends(ws)):
         "demo_ingest": cd.DEMO_INGEST if w["demo"] else None,
         "people": [{"key": k, "name": n, "role": r or ""} for k, n, r in people],
         "counts": counts,
+        "projects": [{"key": p["key"], "name": p["name"]} for p in projects],
     }
 
 
@@ -174,6 +184,17 @@ def ask(body: Ask, request: Request, w: dict = Depends(ws)):
             except Exception:
                 return {"answer": f"Something went wrong: {e}", "mode": "error", "citations": [], "trace": [],
                         "highlight": [], "cited": []}
+
+
+@app.post("/api/w/{slug}/generate")
+def generate(body: Generate, request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "generate")
+    with workspace(w["slug"]):
+        try:
+            return brain_docs.generate(body.kind, body.project, body.goal, body.weeks,
+                                       company=w["name"].replace(" (demo)", ""))
+        except ValueError as e:
+            raise HTTPException(400, str(e))
 
 
 def _check_capacity(add_sources=0):

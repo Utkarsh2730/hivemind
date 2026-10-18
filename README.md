@@ -6,7 +6,8 @@
 2. **Add your people and projects.** Type them in, or upload a file.
 3. **Add your knowledge.** Paste docs, meeting notes, tickets and chats, or upload `.txt`, `.md`, `.csv` or `.json` files. Each item is linked to the right people, projects and tools.
 4. **Ask anything.** The brain follows the connections to the answer, shows the sources, and highlights the path on the map.
-5. **It stays current.** When a new message records a decision that replaces an older one, the older one is marked outdated.
+5. **Write a PRD or sprint plan** for any project in one click, built from the company's own decisions, open tickets, blockers and experts. Every line is cited. Blockers are scheduled first, owners come from assignees or from whoever has hands-on experience, and single-expert risks are flagged. Download as Markdown or save as PDF.
+6. **It stays current.** When a new message records a decision that replaces an older one, the older one is marked outdated.
 
 A public demo company, **Lumen Pay**, is included so judges can try everything without setting anything up.
 
@@ -61,9 +62,10 @@ FalkorDB full-text indexes on `Source(text, title)` and `Decision(title, summary
 
 | File | Purpose |
 |---|---|
+| `brain_docs.py` | PRD and sprint plan generator: collects project facts from the graph, then Claude writes the document (or a template, without a key) |
+| `static/app.js` | Workspace page logic: ask, write docs, add info, file import, map |
 | `workspaces.py` | Company registration. Each company gets its own graph (`cb_<slug>`) and an access key; only the key's SHA-256 hash is stored |
 | `static/landing.html` | Home page: register a company or open the demo |
-| `static/manage.js` | Manage-data panel: people and projects, add knowledge, file import, sharing, private-access lock |
 | `company_data.py` | Data for the demo company "Lumen Pay" (fictional) |
 | `brain_ingest.py` | Works for any workspace: adds people, projects and tools, adds knowledge, detects decisions and replaces outdated ones, bulk import, demo build |
 | `brain_tools.py` | Agent tools: `search_knowledge`, `entity_profile`, `who_knows`, `decision_trail`, `run_cypher`, plus the trace |
@@ -73,10 +75,11 @@ FalkorDB full-text indexes on `Source(text, title)` and `Decision(title, summary
 
 ## 3-minute demo script
 
-1. **Problem (20s).** Company knowledge is scattered across docs, tickets and chat. New people can't find who knows what or why a choice was made.
-2. **Demo company (60s).** Open `/w/demo`. Ask "Why did we choose Postgres?": show the cited answer, then click `[MEET-1]` to open the source. Ask "Who should I ask about Kafka?": Tomas *knows* Kafka even though Priya *owns* the Event Bus.
-3. **Stays current (30s).** Post the prefilled message from Maya. DEC-1 is marked outdated, and asking again shows the change.
-4. **Your own company (50s).** On the home page, create a workspace and save the private link. In **Manage data**, paste three people and two projects, then upload the CSV template. Ask one of the suggested questions: the brain already knows your company.
-5. **Close (20s).** Every company gets its own graph in FalkorDB. Answers come with sources, decisions are traced to their origin, and knowledge stays current.
+1. **Problem (20s).** Company knowledge is scattered across docs, tickets and chat. New people can't find who knows what or why a choice was made, and planning starts from scratch every sprint.
+2. **Ask (45s).** In the demo (`/w/demo`), tap "Why did we choose Postgres?": a cited answer, and the map lights up. Then tap "Who should I ask about Kafka?": Tomas *knows* Kafka even though Priya *owns* the Event Bus.
+3. **Write a sprint plan (40s).** Open **Write a PRD or sprint plan**, choose Sprint plan and Checkout Redesign. The blocker PAY-52 is scheduled first, owners are filled in, and every line is cited. Switch to PRD for Auth Service.
+4. **Stays current (30s).** Open **+ Add info** and post the prefilled message from Maya. DEC-1 is marked outdated, and the Ledger sprint plan now includes the CockroachDB rollout.
+5. **Your own company (30s).** On the home page, create a workspace, paste two people and a project, and upload the CSV template. It's ready to ask and plan.
+6. **Close (15s).** Each company gets its own graph in FalkorDB. Answers and plans come with sources, and the knowledge stays current.
 
-Click **Reset** in the demo before recording.
+Before recording, use the menu (···) → Reset data in the demo.
