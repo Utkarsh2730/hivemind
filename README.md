@@ -4,7 +4,9 @@
 
 **Live demo:** [link goes here after deploy] — open the Lumen Pay demo, or create your own workspace. Nothing to install.
 
-![Asking who to ask about Kafka: the answer, its sources, and the path on the map](docs/ask.png)
+![Company Brain landing page](docs/landing.png)
+
+![A cited answer with the related part of the knowledge graph highlighted](docs/ask.png)
 
 | Sprint plan built from the graph | Knowledge risks from graph algorithms |
 |---|---|
