@@ -123,3 +123,38 @@ def main(shot_path):
 
 if __name__ == "__main__":
     main(sys.argv[1])
+
+
+def devto_cover(shot_path, out_path):
+    """2000x840 (Dev.to shows covers at 1000x420): headline left, screenshot right."""
+    global W, H
+    W0, H0 = W, H
+    W, H = 2000, 840
+    try:
+        img = background().convert("RGBA")
+        card = screenshot_card(shot_path)
+        card = card.resize((int(card.width * 0.78), int(card.height * 0.78)), Image.LANCZOS)
+        x, y = W - card.width + 230, (H - card.height) // 2 + 40
+        shadow = Image.new("RGBA", (card.width + 160, card.height + 160), (0, 0, 0, 0))
+        shadow.paste((0, 0, 0, 190), (80, 80), card.split()[3])
+        img.alpha_composite(shadow.filter(ImageFilter.GaussianBlur(40)), (x - 60, y - 40))
+        img.alpha_composite(card, (x, y))
+        fade = Image.new("L", (W, H), 0)
+        fd = ImageDraw.Draw(fade)
+        for i in range(0, 1000):
+            fd.line([(i, 0), (i, H)], fill=int(255 * max(0.0, min(1.0, (1000 - i) / 320))))
+        img = Image.composite(Image.new("RGBA", (W, H), NIGHT + (255,)), img, fade.point(lambda v: int(v * 0.6)))
+        d = ImageDraw.Draw(img)
+        logo(d, 96, 92, 96)
+        d.text((214, 106), "Hivemind", font=SANS(60, 750), fill=WHITE)
+        d.text((90, 250), "The memory your", font=SERIF(104), fill=WHITE)
+        d.text((90, 360), "company ", font=SERIF(104), fill=WHITE)
+        d.text((90 + SERIF(104).getlength("company "), 360), "never had.", font=SERIF_I(104), fill=AMBER)
+        label = "FalkorDB knowledge graph"
+        f = SANS(36, 650)
+        d.rounded_rectangle((96, 560, 96 + f.getlength(label) + 64, 630), radius=35, fill=AMBER)
+        d.text((128, 575), label, font=f, fill=NIGHT)
+        img.convert("RGB").save(out_path, quality=94, subsampling=0, optimize=True)
+        print(out_path, os.path.getsize(out_path) // 1024, "KB")
+    finally:
+        W, H = W0, H0
