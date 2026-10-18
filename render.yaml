@@ -19,3 +19,7 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: PUBLIC_URL
+        sync: false

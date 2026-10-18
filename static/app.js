@@ -195,8 +195,10 @@ async function ask(q) {
   citedSet = new Set(r.cited);
   const steps = r.trace.map(s => `<li>${stepText(s)}</li>`).join('');
   $('out').innerHTML = `<div class="card answer">${md(r.answer)}
-      <details class="how"><summary>How it found this</summary><ol>${steps || '<li>Answered directly</li>'}</ol></details></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><details class="how" style="margin:0"><summary>How it found this</summary><ol>${steps || '<li>Answered directly</li>'}</ol></details>${shareBtn()}</div></div>
     ${r.citations.length ? `<div class="h">Sources</div>${sourceList(r.citations)}` : ''}`;
+  const sb = $('out').querySelector('[data-share]');
+  if (sb) sb.onclick = () => shareToChannel(`Q: ${q}`, r.answer + (r.citations.length ? '\n\nSources:\n' + r.citations.slice(0, 6).map(c => `- [${c.key}] ${c.title}`).join('\n') : ''));
   focusOn(r.highlight);
 }
 $('go').onclick = () => ask($('q').value);
@@ -239,12 +241,14 @@ $('g-go').onclick = async () => {
     const r = await api('/generate', { kind: KIND, project: $('g-project').value, goal: $('g-goal').value, weeks: +$('g-weeks').value });
     lastDoc = r;
     citedSet = new Set(r.cited);
-    $('gen').innerHTML = `<div class="doctools"><button class="ghost" id="d-copy">Copy</button><button class="ghost" id="d-md">Download .md</button><button class="ghost" id="d-pdf">Save as PDF</button></div>
+    $('gen').innerHTML = `<div class="doctools"><button class="ghost" id="d-copy">Copy</button><button class="ghost" id="d-md">Download .md</button><button class="ghost" id="d-pdf">Save as PDF</button>${shareBtn()}</div>
       <div class="card doc">${md(r.markdown)}<div class="foot">${r.mode === 'claude' ? 'Written by Claude from' : 'Assembled from'} ${r.citations.length} sources in the company map.</div></div>
       <div id="gensrc">${r.citations.length ? `<div class="h">Sources used</div>${sourceList(r.citations)}` : ''}</div>`;
     $('d-copy').onclick = async () => { try { await navigator.clipboard.writeText(r.markdown); toast('Copied as Markdown.'); } catch (e) { toast('Copy failed. Use Download instead.'); } };
     $('d-md').onclick = () => download(`${KIND === 'prd' ? 'PRD' : 'Sprint plan'} - ${r.title}.md`, r.markdown, 'text/markdown');
     $('d-pdf').onclick = () => window.print();
+    const sb = $('gen').querySelector('[data-share]');
+    if (sb) sb.onclick = () => shareToChannel('', r.markdown);
     focusOn(r.highlight);
   } catch (e) { if (e.message !== 'locked') $('gen').innerHTML = `<div class="card">${esc(e.message)}</div>`; }
   $('g-go').disabled = false;
@@ -381,6 +385,114 @@ $('gh-go').onclick = async () => {
   $('gh-go').disabled = false;
 };
 
+// ---------- connections ----------
+let CONN = null;
+const PLATFORM = { slack: 'Slack', discord: 'Discord', teams: 'Microsoft Teams', google_chat: 'Google Chat' };
+async function openConnections() {
+  $('cdrawer').classList.add('open'); $('overlay').classList.add('open');
+  ['c-slack-res', 'c-notify-res', 'c-in-res'].forEach(i => $(i).innerHTML = '');
+  try { CONN = await api('/connections'); } catch (e) { return; }
+  const demo = CONN.demo;
+  $('c-demo').style.display = demo ? '' : 'none';
+  $('cbody').querySelectorAll('input,button.btn,button.ghost:not(#cclose)').forEach(el => el.disabled = demo);
+  if (demo) return;
+  $('c-token').placeholder = CONN.slack_token ? `Saved (${CONN.slack_token})` : 'xoxb-...';
+  $('c-secret').placeholder = CONN.slack_signing_secret ? 'Saved' : '••••••';
+  $('c-notify').placeholder = CONN.notify_url ? `Connected: ${PLATFORM[CONN.notify_platform] || CONN.notify_platform} (${CONN.notify_url})` : $('c-notify').placeholder;
+  $('c-decisions').checked = CONN.notify_decisions;
+  $('c-inbound').value = CONN.inbound_url;
+  $('c-slack-res').innerHTML = CONN.slack_token && CONN.slack_signing_secret
+    ? `Connected. Events URL: <span class="mono">${esc(CONN.slack_events_url)}</span>` : '';
+}
+function closeConnections() { $('cdrawer').classList.remove('open'); $('overlay').classList.remove('open'); }
+$('connect').onclick = openConnections; $('menu-connect').onclick = openConnections; $('cclose').onclick = closeConnections;
+$('overlay').addEventListener('click', closeConnections);
+async function saveConn(body, resId, okMsg) {
+  try { CONN = await api('/connections', body); setRes(resId, okMsg, true); await refresh(); openConnections(); }
+  catch (e) { if (e.message !== 'locked') setRes(resId, esc(e.message)); }
+}
+$('c-manifest').onclick = async e => {
+  e.preventDefault(); if (!CONN || CONN.demo) return;
+  try { await navigator.clipboard.writeText(JSON.stringify(CONN.slack_manifest, null, 2)); toast('Slack app manifest copied. Paste it on api.slack.com/apps.'); }
+  catch (err) { prompt('Copy this Slack app manifest:', JSON.stringify(CONN.slack_manifest)); }
+};
+$('c-save-slack').onclick = () => {
+  const body = {};
+  if ($('c-token').value.trim()) body.slack_token = $('c-token').value.trim();
+  if ($('c-secret').value.trim()) body.slack_signing_secret = $('c-secret').value.trim();
+  if (!Object.keys(body).length) { setRes('c-slack-res', 'Paste the bot token and signing secret first.'); return; }
+  $('c-token').value = ''; $('c-secret').value = '';
+  saveConn(body, 'c-slack-res', 'Slack saved. Invite @Company Brain to channels, then try /brain in Slack.');
+};
+$('c-import-slack').onclick = async () => {
+  setRes('c-slack-res', '<span class="spin"></span>Reading recent messages from channels the bot is in&hellip;', true);
+  try { const r = await api('/slack/import', {}); setRes('c-slack-res', `Imported ${r.added} messages and found ${r.decisions} decisions.`, true); await refresh(); }
+  catch (e) { if (e.message !== 'locked') setRes('c-slack-res', esc(e.message)); }
+};
+$('c-save-notify').onclick = () => {
+  const body = { notify_decisions: $('c-decisions').checked };
+  if ($('c-notify').value.trim()) body.notify_url = $('c-notify').value.trim();
+  $('c-notify').value = '';
+  saveConn(body, 'c-notify-res', 'Saved. Use "Send a test message" to check it.');
+};
+$('c-test').onclick = async () => {
+  try { await api('/connections/test', {}); setRes('c-notify-res', 'Test message sent. Check your channel.', true); }
+  catch (e) { if (e.message !== 'locked') setRes('c-notify-res', esc(e.message)); }
+};
+$('c-copy-inbound').onclick = async () => { try { await navigator.clipboard.writeText($('c-inbound').value); toast('Webhook URL copied. Keep it private.'); } catch (e) { $('c-inbound').select(); } };
+$('c-rotate').onclick = async () => {
+  if (!confirm('Make a new webhook URL? Tools using the old one will stop sending.')) return;
+  try { CONN = await api('/connections/rotate', {}); $('c-inbound').value = CONN.inbound_url; setRes('c-in-res', 'New URL ready. Update it in your tools.', true); }
+  catch (e) { if (e.message !== 'locked') setRes('c-in-res', esc(e.message)); }
+};
+
+// Slack export .zip, parsed in the browser
+async function importSlackZip(file) {
+  if (!window.JSZip) { setRes('zip-res', 'Could not load the zip reader. Check your connection.'); return; }
+  setRes('zip-res', '<span class="spin"></span>Reading the export&hellip;', true);
+  try {
+    const zip = await JSZip.loadAsync(file);
+    const users = {};
+    const uf = zip.file(/(^|\/)users\.json$/)[0];
+    if (uf) JSON.parse(await uf.async('string')).forEach(u => users[u.id] = u.real_name || (u.profile || {}).real_name || u.name);
+    const items = [];
+    for (const f of zip.file(/\/\d{4}-\d{2}-\d{2}\.json$/)) {
+      const parts = f.name.split('/'), channel = '#' + parts[parts.length - 2], day = parts[parts.length - 1].slice(0, 10);
+      for (const m of JSON.parse(await f.async('string'))) {
+        if (m.type !== 'message' || m.subtype || m.bot_id || !m.text) continue;
+        const text = m.text.replace(/<@([UW][A-Z0-9]+)(?:\|[^>]+)?>/g, (_, id) => '@' + (users[id] || id))
+          .replace(/<#C[A-Z0-9]+\|([^>]+)>/g, '#$1').replace(/<(https?:[^|>]+)\|([^>]+)>/g, '$2 ($1)').replace(/<(https?:[^>]+)>/g, '$1')
+          .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();
+        if (text.length < 3) continue;
+        items.push({ kind: 'message', text: text.slice(0, 4000), author: (users[m.user] || (m.user_profile || {}).real_name || m.user || '').slice(0, 60),
+          channel: channel.slice(0, 40), date: day, title: '', status: '', assignee: '', key: '' });
+      }
+    }
+    if (!items.length) { setRes('zip-res', 'No messages found. Is this a Slack export?'); return; }
+    items.sort((a, b) => a.date.localeCompare(b.date));
+    const recent = items.slice(-600);
+    let added = 0, decisions = 0;
+    for (let i = 0; i < recent.length; i += 200) {
+      setRes('zip-res', `<span class="spin"></span>Importing ${Math.min(i + 200, recent.length)} of ${recent.length} messages&hellip;`, true);
+      const r = await api('/import', { sources: recent.slice(i, i + 200) }); added += r.added; decisions += r.decisions;
+    }
+    setRes('zip-res', `Imported ${added} messages${items.length > recent.length ? ` (the most recent ${recent.length} of ${items.length})` : ''} and found ${decisions} decisions.`, true);
+    await refresh();
+  } catch (e) { if (e.message !== 'locked') setRes('zip-res', esc(e.message || 'Could not read the zip.')); }
+}
+$('zipdrop').onclick = () => $('zipfile').click();
+$('zipfile').onchange = e => { if (e.target.files[0]) importSlackZip(e.target.files[0]); e.target.value = ''; };
+['dragover', 'dragenter'].forEach(ev => $('zipdrop').addEventListener(ev, e => { e.preventDefault(); $('zipdrop').classList.add('over'); }));
+['dragleave', 'drop'].forEach(ev => $('zipdrop').addEventListener(ev, e => { e.preventDefault(); $('zipdrop').classList.remove('over'); }));
+$('zipdrop').addEventListener('drop', e => { if (e.dataTransfer.files[0]) importSlackZip(e.dataTransfer.files[0]); });
+
+// "Send to channel" for answers and documents
+async function shareToChannel(title, markdown) {
+  try { const r = await api('/share', { title, markdown }); toast(`Sent to ${PLATFORM[r.platform] || r.platform}.`); }
+  catch (e) { if (e.message !== 'locked') toast(esc(e.message)); }
+}
+const shareBtn = () => META && META.notify ? `<button class="ghost" data-share="1" style="font-size:12px;padding:5px 9px">Send to ${esc(PLATFORM[META.notify] || META.notify)}</button>` : '';
+
 // ---------- menu actions + gate ----------
 $('mcp').onclick = () => {
   const cfg = { mcpServers: { 'company-brain': { command: 'python3', args: ['/path/to/mcp_server.py'],
@@ -422,6 +534,7 @@ async function refresh() {
   if (sel && m.projects.some(p => p.key === sel)) $('g-project').value = sel;
   $('sec-files').style.display = m.workspace.demo ? 'none' : '';
   $('sec-gh').style.display = m.workspace.demo ? 'none' : '';
+  $('connect').title = m.notify ? `Connected: ${PLATFORM[m.notify] || m.notify}` : 'Connect Slack, Jira, Linear, GitHub, Teams...';
   $('sec-team').style.display = m.workspace.demo ? 'none' : '';
   $('demo-note').style.display = m.workspace.demo ? '' : 'none';
   if (m.demo_ingest && !$('k-text').value) {

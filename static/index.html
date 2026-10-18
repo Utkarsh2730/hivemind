@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
   --bg:#0b0b12; --panel:#12121c; --panel2:#181826; --line:#26263a; --ink:#ececf4; --muted:#9a9ab0; --dim:#62627a;
@@ -155,6 +156,7 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
 @media (max-width:560px){
   header{padding:0 12px;gap:8px}
   .logo span{display:none}
+  #connect{display:none}
   .view,.tabs{padding-left:16px;padding-right:16px}
   .row{flex-direction:column;gap:0}
   .row>*+*{margin-top:10px}
@@ -176,11 +178,13 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
   <a href="/" class="logo"><i></i><span>Company Brain</span></a>
   <div class="ws" id="wsname">&hellip;</div>
   <div class="sp"></div>
+  <button class="ghost" id="connect" style="color:var(--ink)">Connect apps</button>
   <button class="btn" id="addinfo">+ Add info</button>
   <div class="menu">
     <button class="ghost" id="menubtn" aria-label="More options">&middot;&middot;&middot;</button>
     <div class="menu-list" id="menu">
       <button id="share">Copy private link</button>
+      <button id="menu-connect">Connections (Slack, Jira, Teams...)</button>
       <button id="mcp">Use in Claude Desktop (MCP)</button>
       <button id="reset">Reset data</button>
       <a href="/">Home</a>
@@ -293,6 +297,56 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
     </details>
     <p class="muted" id="demo-note" style="display:none;font-size:13px;line-height:1.5">This is the shared demo: you can paste messages, but not upload files or edit the team. <a href="/" style="color:var(--accent2)">Create your own workspace</a> to bring your company's data.</p>
     <datalist id="people"></datalist>
+  </div>
+</aside>
+
+<aside class="drawer" id="cdrawer">
+  <div class="dh"><h3>Connect your tools</h3><span class="sp"></span><button class="ghost" id="cclose">Close</button></div>
+  <div class="db" id="cbody">
+    <p class="muted" id="c-demo" style="display:none;font-size:13px;line-height:1.5;margin-top:0">This is the shared demo, so connections are switched off here. <a href="/" style="color:var(--accent2)">Create your own workspace</a> to connect Slack, Jira, Linear, GitHub, Teams and more.</p>
+
+    <div class="sec card">
+      <h4>Slack</h4>
+      <p class="d">New messages in channels the bot is in flow into the brain automatically, and anyone can type <span class="mono">/brain who owns checkout?</span> to get a cited answer in Slack.</p>
+      <ol class="muted" style="font-size:13px;line-height:1.7;padding-left:18px;margin:0 0 10px">
+        <li><a href="#" id="c-manifest" style="color:var(--accent2)">Copy the app manifest</a>, then on <a href="https://api.slack.com/apps?new_app=1" target="_blank" rel="noopener" style="color:var(--accent2)">api.slack.com/apps</a> choose <b>Create New App &rarr; From a manifest</b> and paste it.</li>
+        <li>Click <b>Install to Workspace</b>, then paste the <b>Bot User OAuth Token</b> and the <b>Signing Secret</b> (Basic Information) below.</li>
+        <li>In Slack, invite <b>@Company Brain</b> to the channels it should learn from.</li>
+      </ol>
+      <div class="row"><div><label class="f">Bot token</label><input id="c-token" placeholder="xoxb-..." autocomplete="off"></div>
+        <div><label class="f">Signing secret</label><input id="c-secret" type="password" placeholder="••••••" autocomplete="off"></div></div>
+      <div class="gap"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="c-save-slack">Save Slack</button><button class="ghost" id="c-import-slack">Import recent channel history</button></div>
+      <div class="res" id="c-slack-res"></div>
+      <details class="more"><summary>No Slack app? Upload a Slack export instead</summary>
+        <p class="d" style="margin-top:6px">Workspace admins can export from Slack (Settings &rarr; Import/Export data). Drop the .zip here; it's read in your browser and only messages are sent.</p>
+        <div class="drop" id="zipdrop">Drop Slack export .zip or click<input type="file" id="zipfile" accept=".zip" hidden></div>
+        <div class="res" id="zip-res"></div>
+      </details>
+    </div>
+
+    <div class="sec card">
+      <h4>Post updates to a channel</h4>
+      <p class="d">Paste an incoming-webhook URL from <b>Slack</b>, <b>Discord</b>, <b>Microsoft Teams</b> or <b>Google Chat</b>. The brain announces new and replaced decisions there, and every answer, PRD and sprint plan gets a <b>Send to channel</b> button.</p>
+      <input id="c-notify" placeholder="https://hooks.slack.com/services/... or Discord / Teams / Google Chat webhook" autocomplete="off">
+      <label class="muted" style="display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0"><input type="checkbox" id="c-decisions" style="width:auto" checked> Announce new and replaced decisions</label>
+      <div style="display:flex;gap:8px"><button class="btn" id="c-save-notify">Save</button><button class="ghost" id="c-test">Send a test message</button></div>
+      <div class="res" id="c-notify-res"></div>
+    </div>
+
+    <div class="sec card">
+      <h4>Jira, Linear, GitHub, Zapier &amp; more</h4>
+      <p class="d">Point any tool's webhook at your private URL. Issues become tickets, comments become messages, and decisions are detected automatically.</p>
+      <div style="display:flex;gap:8px"><input id="c-inbound" readonly><button class="ghost" id="c-copy-inbound">Copy</button></div>
+      <ul class="muted" style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:10px 0 6px">
+        <li><b>Jira:</b> Settings &rarr; System &rarr; Webhooks &rarr; Create, events: Issue created/updated, Comment created.</li>
+        <li><b>Linear:</b> Settings &rarr; API &rarr; Webhooks, resources: Issues and Comments.</li>
+        <li><b>GitHub:</b> repo Settings &rarr; Webhooks, content type <span class="mono">application/json</span>, events: Issues, Issue comments, Pull requests.</li>
+        <li><b>Microsoft Teams, Notion, Google Docs, email and others:</b> use Zapier, Make or n8n to POST <span class="mono">{"text": "...", "author": "...", "channel": "..."}</span>.</li>
+      </ul>
+      <button class="ghost" id="c-rotate">Make a new URL (the old one stops working)</button>
+      <div class="res" id="c-in-res"></div>
+    </div>
   </div>
 </aside>
 

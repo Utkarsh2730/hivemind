@@ -112,6 +112,7 @@ def test_insights_use_graph_algorithms():
 def test_api_end_to_end():
     from fastapi.testclient import TestClient
     import server
+    server._hits.clear()
     c = TestClient(server.app)
     w = c.post("/api/workspaces", json={"name": "API Co"}).json()
     h = {"X-Workspace-Key": w["key"]}

@@ -13,13 +13,17 @@
 ## What it does
 
 1. **Register your company.** You get a private workspace with its own FalkorDB graph and a secret access link.
-2. **Bring your knowledge.** Paste docs, meeting notes, tickets and chats; upload `.txt`, `.md`, `.csv` or `.json`; or **import a GitHub repo** (issues, pull requests, comments). Everything is linked to the right people, projects and tools automatically.
-3. **Ask anything.** "Why did we choose Postgres?", "Who should I ask about Kafka?", "Why is checkout blocked?" The brain follows the connections, shows each step live, cites its sources, and highlights the path on the map.
-4. **See who actually knows what.** Expertise comes from evidence (who wrote about it, who was assigned it, who colleagues thank), not from org charts, and it's shown next to formal ownership.
-5. **Write a PRD or sprint plan** for any project in one click. Blockers are scheduled first, owners come from assignees or whoever has hands-on experience, risks are flagged, and every line is cited. Download as Markdown or save as PDF.
-6. **Find knowledge risks** with FalkorDB's graph algorithms: key connectors, single points of failure, stalled work, and knowledge nobody is linked to.
-7. **It stays current.** When a new message records a decision that replaces an older one, the old one is marked outdated. Mistakes can be removed or marked "not a decision", which restores whatever it replaced.
-8. **Use it from Claude Desktop or Cursor** through the included MCP server.
+2. **Bring your knowledge.** Paste docs, meeting notes, tickets and chats; upload `.txt`, `.md`, `.csv` or `.json`; **import a GitHub repo**; or **connect your tools** (below). Everything is linked to the right people, projects and tools automatically.
+3. **Connect Slack and other platforms, in both directions.**
+   - **Slack app:** messages in channels the bot is in flow in live, `/brain <question>` answers in Slack with sources, and recent channel history can be imported. No Slack app? Upload a Slack export `.zip`.
+   - **Jira, Linear, GitHub webhooks,** plus anything via Zapier, Make or n8n (Teams, Notion, Google Docs, email): one private webhook URL per company.
+   - **Notifications out** to Slack, Discord, Microsoft Teams or Google Chat: new and replaced decisions are announced, and any answer, PRD or sprint plan can be sent to the channel.
+4. **Ask anything.** "Why did we choose Postgres?", "Who should I ask about Kafka?", "Why is checkout blocked?" The brain follows the connections, shows each step live, cites its sources, and highlights the path on the map.
+5. **See who actually knows what.** Expertise comes from evidence (who wrote about it, who was assigned it, who colleagues thank), not from org charts, and it's shown next to formal ownership.
+6. **Write a PRD or sprint plan** for any project in one click. Blockers are scheduled first, owners come from assignees or whoever has hands-on experience, risks are flagged, and every line is cited. Download as Markdown or save as PDF.
+7. **Find knowledge risks** with FalkorDB's graph algorithms: key connectors, single points of failure, stalled work, and knowledge nobody is linked to.
+8. **It stays current.** When a new message records a decision that replaces an older one, the old one is marked outdated. Mistakes can be removed or marked "not a decision", which restores whatever it replaced.
+9. **Use it from Claude Desktop or Cursor** through the included MCP server.
 
 A public demo company, **Lumen Pay** (12 people, 6 projects, 27 docs/tickets/chats, 7 decisions), lets judges try everything immediately.
 
@@ -62,10 +66,24 @@ graph LR
   Agent & Docs & Ingest --> FDB[(FalkorDB<br/>one graph per company)]
 ```
 
+## Connections
+
+Open **Connect apps** in a workspace. Each company connects its own tools; the shared demo has connections switched off.
+
+| Tool | Direction | How |
+|---|---|---|
+| Slack | In (live) + `/brain` answers | Copy the generated app manifest → api.slack.com/apps → *From a manifest* → install, then paste the bot token and signing secret. Every request is checked against the signing secret (HMAC, 5-minute window); Slack's retries and bot posts are ignored. |
+| Slack history | In | "Import recent channel history" (channels the bot is in), or upload a Slack export `.zip`, which is parsed in the browser |
+| Jira, Linear, GitHub | In | Point their webhooks at the private URL `/hooks/<workspace>/<token>`. Their native payloads are recognised. |
+| Zapier, Make, n8n | In | POST `{"text","author","channel","kind"}` (or `{"items":[...]}`) to the same URL; this reaches Teams, Notion, Google Docs, email and more |
+| Slack, Discord, Teams, Google Chat | Out | Incoming-webhook URL. Decisions are announced, and there's a "Send to channel" button on answers and documents. Only those chat hosts are allowed. |
+
+Secrets are stored on the workspace's registry node, are never returned to the browser in full, and the webhook URL can be rotated.
+
 ## Quality
 
 - **Accuracy check** (`python eval_qa.py`): 10 questions about the demo company, where each answer must contain the right facts and cite the right sources. **Graph-only mode: 10/10.** Run it with `ANTHROPIC_API_KEY` set to score Claude mode.
-- **Tests** (`python -m pytest -q`): 12 tests covering company isolation, access keys, people deduplication, linking without AI, decisions not over-detected, replace-and-undo of decisions, deletion, cited answers, sprint ordering, PRD sections, the graph algorithms, and the full API including live steps.
+- **Tests** (`python -m pytest -q`): 21 tests. 9 cover connections: Slack signature checks (valid, wrong, expired), live Slack messages becoming knowledge and announcing decisions, `/brain` answering in channel, Jira, Linear, GitHub and generic webhooks, the chat-host allowlist, hidden secrets, and demo protection. The other 12 cover company isolation, access keys, people deduplication, linking without AI, decisions not over-detected, replace-and-undo of decisions, deletion, cited answers, sprint ordering, PRD sections, the graph algorithms, and the full API including live steps.
 - **Scale:** importing 400 items takes under a second. Above 450 nodes the map shows an overview and loads just the part behind each answer.
 
 ## Use it from Claude Desktop (MCP)
@@ -110,6 +128,7 @@ Deep links: `/w/demo?ask=Who owns checkout?` or `/w/demo?write=sprint&project=pr
 | `brain_docs.py` | PRD and sprint plan generator |
 | `brain_insights.py` | Knowledge risks using `algo.betweenness`, `algo.pageRank`, `algo.WCC` |
 | `brain_github.py` | Import issues, pull requests and comments from a public GitHub repo |
+| `integrations.py` | Slack (events, slash command, history), incoming webhooks (Jira, Linear, GitHub, generic) and chat notifications (Slack, Discord, Teams, Google Chat) |
 | `workspaces.py` | Company registration and access keys (hashed) |
 | `mcp_server.py` | MCP server for Claude Desktop / Cursor |
 | `company_data.py` | Demo company "Lumen Pay" (fictional) |
@@ -121,6 +140,7 @@ Deep links: `/w/demo?ask=Who owns checkout?` or `/w/demo?write=sprint&project=pr
 - **Access is a secret link,** with no accounts. A lost link can't be recovered, and the setup screens say so. Real sign-in is the next step.
 - **Rate limits are kept in memory,** so they reset when the server restarts, and each server instance has its own.
 - **Without an AI key,** new items are linked only to people, projects and tools the brain already knows about (plus @mentions and about 100 common technologies). Decisions are found by phrases like "we decided" or "we're moving", and they can be undone with "Not a decision".
+- **Connection secrets** are stored as-is in the registry graph. Production should encrypt them or use a secrets manager. Slack setup is one app per company (a manifest is generated), not a one-click "Add to Slack" listing.
 - **GitHub import** reads the 100 most recently updated issues and pull requests and their recent comments, from public repos only.
 
 ## 3-minute demo script
@@ -130,7 +150,8 @@ Deep links: `/w/demo?ask=Who owns checkout?` or `/w/demo?write=sprint&project=pr
 3. **Risks (20s).** Tap "Where are our biggest knowledge risks?". Graph algorithms find key connectors, single points of failure and stalled work.
 4. **Plan (30s).** In **Write**, choose Sprint plan for Checkout Redesign. The blocker PAY-52 comes first, owners are filled in, and every line is cited.
 5. **Stays current (25s).** **+ Add info** → post the prefilled message from Maya. DEC-1 is marked outdated, and the Ledger sprint plan now includes the CockroachDB rollout.
-6. **Your company (30s).** Create a workspace and import a GitHub repo (e.g. `FalkorDB/falkordb-py`). Within seconds it knows the contributors, the experts and the open work, and can write a sprint plan.
-7. **Close (15s).** One FalkorDB graph per company, cited answers and plans, and knowledge that stays current. Also available inside Claude through MCP.
+6. **Connect (20s).** Open **Connect apps**: show the Slack manifest, the webhook URL for Jira, Linear and GitHub, and channel notifications. Upload a Slack export zip and ask about it right away.
+7. **Your company (30s).** Create a workspace and import a GitHub repo (e.g. `FalkorDB/falkordb-py`). Within seconds it knows the contributors, the experts and the open work, and can write a sprint plan.
+8. **Close (15s).** One FalkorDB graph per company, cited answers and plans, and knowledge that stays current. Also available inside Claude through MCP.
 
 Before recording: menu (···) → Reset data in the demo.

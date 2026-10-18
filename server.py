@@ -3,22 +3,25 @@
 Local:  .venv/bin/python server.py   then open http://localhost:8000
 Online: the host sets PORT; the app listens on 0.0.0.0 (see render.yaml).
 """
+import asyncio
 import json
 import os
 import queue
 import threading
 import time
+import urllib.parse
 from collections import defaultdict, deque
 
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import brain_agent
 import brain_docs
 import brain_github
+import integrations
 import brain_ingest
 import company_data as cd
 import workspaces
@@ -38,7 +41,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
 # ---------- public-demo protection ----------
-LIMITS = {"generate": (4, 60), "ask": (8, 60), "write": (20, 60), "import": (4, 60), "reset": (2, 60), "create": (3, 600)}
+LIMITS = {"webhook": (60, 60), "slack": (120, 60), "share": (10, 60), "generate": (4, 60), "ask": (8, 60), "write": (20, 60), "import": (4, 60), "reset": (2, 60), "create": (3, 600)}
 MAX_SOURCES, MAX_ENTITIES = 2000, 1500
 _hits = defaultdict(deque)
 _locks = defaultdict(threading.Lock)
@@ -80,6 +83,18 @@ class Generate(BaseModel):
     project: str = Field(max_length=80)
     goal: str = Field(default="", max_length=300)
     weeks: int = Field(default=2, ge=1, le=4)
+
+
+class Connections(BaseModel):
+    slack_token: str | None = Field(default=None, max_length=200)
+    slack_signing_secret: str | None = Field(default=None, max_length=100)
+    notify_url: str | None = Field(default=None, max_length=500)
+    notify_decisions: bool | None = None
+
+
+class Share(BaseModel):
+    title: str = Field(default="", max_length=200)
+    markdown: str = Field(max_length=30000)
 
 
 class GitHubImport(BaseModel):
@@ -170,6 +185,7 @@ def meta(w: dict = Depends(ws)):
         "people": [{"key": k, "name": n, "role": r or ""} for k, n, r in people],
         "counts": counts,
         "projects": [{"key": p["key"], "name": p["name"]} for p in projects],
+        "notify": "" if w["demo"] else integrations.public_settings(w["slug"])["notify_platform"],
     }
 
 
@@ -329,9 +345,12 @@ def add_one(body: Message, request: Request, w: dict = Depends(ws)):
             if live >= 50:
                 brain_ingest.build_demo()
         _check_capacity(1)
-        return brain_ingest.add_knowledge(body.kind, body.text, author=body.author, title=body.title,
-                                          date_=body.date, channel=body.channel, status=body.status,
-                                          assignee=body.assignee, key=body.key)
+        change = brain_ingest.add_knowledge(body.kind, body.text, author=body.author, title=body.title,
+                                            date_=body.date, channel=body.channel, status=body.status,
+                                            assignee=body.assignee, key=body.key)
+    if not w["demo"]:
+        integrations.notify_change(w["slug"], change, _public_base(request) + f"/w/{w['slug']}")
+    return change
 
 
 @app.post("/api/w/{slug}/import")
@@ -364,6 +383,209 @@ def reset(request: Request, w: dict = Depends(ws)):
             with workspace(w["slug"]):
                 brain_ingest.init_graph(wipe=True)
     return {"ok": True}
+
+
+# ---------- connections: Slack, webhooks, notifications ----------
+
+def _public_base(request: Request) -> str:
+    if os.environ.get("PUBLIC_URL"):
+        return os.environ["PUBLIC_URL"].rstrip("/")
+    proto = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", request.url.netloc))
+    return f"{proto}://{host}"
+
+
+def _no_demo(w):
+    if w["demo"]:
+        raise HTTPException(403, "Create your own workspace to connect Slack and other tools.")
+
+
+@app.get("/api/w/{slug}/connections")
+def get_connections(request: Request, w: dict = Depends(ws)):
+    base = _public_base(request)
+    if w["demo"]:
+        return {"demo": True, "base": base}
+    s = integrations.public_settings(w["slug"])
+    return {**s, "demo": False, "base": base,
+            "slack_events_url": f"{base}/slack/{w['slug']}/events",
+            "slack_command_url": f"{base}/slack/{w['slug']}/command",
+            "inbound_url": f"{base}/hooks/{w['slug']}/{s['inbound_token']}",
+            "slack_manifest": integrations.slack_manifest(base, w["slug"], w["name"])}
+
+
+@app.post("/api/w/{slug}/connections")
+def set_connections(body: Connections, request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "write")
+    _no_demo(w)
+    try:
+        integrations.update_settings(w["slug"], body.slack_token, body.slack_signing_secret, body.notify_url,
+                                     body.notify_decisions)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return get_connections(request, w)
+
+
+@app.post("/api/w/{slug}/connections/rotate")
+def rotate_inbound(request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "write")
+    _no_demo(w)
+    integrations.inbound_token(w["slug"], rotate=True)
+    return get_connections(request, w)
+
+
+@app.post("/api/w/{slug}/connections/test")
+def test_notify(request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "share")
+    _no_demo(w)
+    s = integrations.get_settings(w["slug"])
+    if not s.get("notify_url"):
+        raise HTTPException(400, "Add a channel webhook URL first.")
+    try:
+        integrations.send(s["notify_url"], f"Company Brain for **{w['name']}** is connected. Decisions and shared "
+                                           f"answers will appear here.\n{_public_base(request)}/w/{w['slug']}")
+    except Exception as e:
+        raise HTTPException(400, f"The chat app rejected the message: {e}")
+    return {"ok": True}
+
+
+@app.post("/api/w/{slug}/share")
+def share(body: Share, request: Request, w: dict = Depends(ws)):
+    """Send an answer, PRD or sprint plan to the connected chat channel."""
+    _rate_limit(request, "share")
+    _no_demo(w)
+    s = integrations.get_settings(w["slug"])
+    if not s.get("notify_url"):
+        raise HTTPException(400, "Connect a channel first (menu, then Connections).")
+    try:
+        integrations.send(s["notify_url"], body.markdown, body.title)
+    except Exception as e:
+        raise HTTPException(400, f"The chat app rejected the message: {e}")
+    return {"ok": True, "platform": integrations.platform_of(s["notify_url"])}
+
+
+@app.post("/api/w/{slug}/slack/import")
+def slack_import(request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "import")
+    _no_demo(w)
+    token = integrations.get_settings(w["slug"]).get("slack_token")
+    if not token:
+        raise HTTPException(400, "Add the Slack bot token first.")
+    try:
+        items = integrations.slack_history(token)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    with workspace(w["slug"]), _locks[w["slug"]]:
+        _check_capacity(len(items))
+        res = brain_ingest.bulk_import(items[:200])
+    res["read"] = len(items)
+    return res
+
+
+def _ingest_items(slug: str, items: list[dict], link: str) -> dict:
+    with workspace(slug), _locks[slug]:
+        _check_capacity(len(items))
+        out = {"added": 0, "decisions": []}
+        for it in sorted(items, key=lambda x: x.get("date") or ""):
+            ch = brain_ingest.add_knowledge(it.get("kind", "message"), it.get("text", ""), author=it.get("author", ""),
+                                            title=it.get("title", ""), date_=it.get("date", ""),
+                                            channel=it.get("channel", ""), status=it.get("status", ""),
+                                            assignee=it.get("assignee", ""), key=it.get("key", ""))
+            out["added"] += 1
+            if ch["decision"]:
+                out["decisions"].append(ch["decision"]["key"])
+                integrations.notify_change(slug, ch, link)
+    return out
+
+
+@app.post("/hooks/{slug}/{token}")
+async def inbound_webhook(slug: str, token: str, request: Request):
+    """Jira, Linear, GitHub, Zapier/Make/n8n or any JSON: {"text": ..., "author": ..., "channel": ...}."""
+    _rate_limit(request, "webhook")
+    w = workspaces.get(slug)
+    expected = integrations.get_settings(slug).get("inbound_token") if w and not w["demo"] else None
+    if not expected or not secrets_equal(token, expected):
+        raise HTTPException(404, "Unknown webhook.")
+    body = await request.body()
+    if len(body) > 200_000:
+        raise HTTPException(413, "Payload too large.")
+    try:
+        payload = json.loads(body or b"{}")
+    except ValueError:
+        raise HTTPException(400, "Send JSON.")
+    if not isinstance(payload, dict):
+        raise HTTPException(400, "Send a JSON object.")
+    platform, items = integrations.parse_inbound(payload, {k.lower(): v for k, v in request.headers.items()})
+    items = [i for i in items if (i.get("text") or "").strip()]
+    if not items:
+        return {"ok": True, "platform": platform, "added": 0}
+    res = await asyncio.to_thread(_ingest_items, slug, items, _public_base(request) + f"/w/{slug}")
+    return {"ok": True, "platform": platform, **res}
+
+
+def secrets_equal(a: str, b: str) -> bool:
+    import hmac
+    return hmac.compare_digest(a.encode(), b.encode())
+
+
+async def _slack_request(slug: str, request: Request) -> tuple[dict, bytes]:
+    _rate_limit(request, "slack")
+    w = workspaces.get(slug)
+    if not w or w["demo"]:
+        raise HTTPException(404, "Unknown workspace.")
+    body = await request.body()
+    secret = integrations.get_settings(slug).get("slack_signing_secret")
+    if not integrations.verify_slack(secret, {k.lower(): v for k, v in request.headers.items()}, body):
+        raise HTTPException(401, "Bad Slack signature.")
+    return w, body
+
+
+@app.post("/slack/{slug}/events")
+async def slack_events(slug: str, request: Request):
+    w, body = await _slack_request(slug, request)
+    payload = json.loads(body or b"{}")
+    if payload.get("type") == "url_verification":
+        return {"challenge": payload.get("challenge")}
+    if request.headers.get("x-slack-retry-num"):
+        return {"ok": True}  # we already accepted the original delivery
+    token = integrations.get_settings(slug).get("slack_token") or ""
+    event = payload.get("event") or {}
+
+    def work():
+        src = integrations.slack_event_to_source(event, token)
+        if src:
+            _ingest_items(slug, [src], f"{_public_base(request)}/w/{slug}")
+    threading.Thread(target=work, daemon=True).start()  # Slack wants a reply within 3 seconds
+    return {"ok": True}
+
+
+@app.post("/slack/{slug}/command")
+async def slack_command(slug: str, request: Request):
+    w, body = await _slack_request(slug, request)
+    form = {k: v[0] for k, v in urllib.parse.parse_qs(body.decode()).items()}
+    question = (form.get("text") or "").strip()[:400]
+    response_url = form.get("response_url", "")
+    if not question:
+        return JSONResponse({"response_type": "ephemeral", "text": "Ask a question, e.g. `/brain who owns checkout?`"})
+    if urllib.parse.urlparse(response_url).hostname not in ("hooks.slack.com",):
+        raise HTTPException(400, "Bad response_url.")
+    base = _public_base(request)
+
+    def work():
+        with workspace(slug):
+            try:
+                r = brain_agent.answer(question, company=w["name"])
+            except Exception:
+                r = brain_agent.answer(question, mode="graph")
+        srcs = "\n".join(f"• [{c['key']}] {c['title']} ({c.get('author') or c['kind']}, {c.get('date') or ''})"
+                         for c in r["citations"][:6])
+        text = integrations.to_chat_text(f"**Q: {question}**\n{r['answer']}" + (f"\n\n**Sources**\n{srcs}" if srcs else "")
+                                         + f"\n<{base}/w/{slug}?ask={urllib.parse.quote(question)}|Open in Company Brain>", "slack")
+        try:
+            integrations._post_json(response_url, {"response_type": "in_channel", "text": text[:39000]})
+        except Exception as e:
+            print("slack response failed:", e)
+    threading.Thread(target=work, daemon=True).start()
+    return JSONResponse({"response_type": "ephemeral", "text": f"Looking that up: _{question}_"})
 
 
 if __name__ == "__main__":
