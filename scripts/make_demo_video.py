@@ -75,15 +75,34 @@ GAP, LEAD, TAIL = 0.45, 0.5, 0.9
 class Scene:
     def __init__(self, title, sentences, action=None, card=None):
         self.title, self.sentences, self.action, self.card = title, sentences, action, card
-        self.frames, self.schedule, self.length = [], [], 0.0
+        self.frames, self.length = [], 0.0
 
     def narrate(self, idx0):
-        t = LEAD
-        for i, s in enumerate(self.sentences):
-            wav, d = tts(s, f"{idx0}_{i}")
-            self.schedule.append((t, t + d, s, wav))
-            t += d + GAP
-        self.narration_len = t - GAP + TAIL
+        self.audio = [tts(s, f"{idx0}_{i}") for i, s in enumerate(self.sentences)]  # (wav, seconds)
+        self.starts = [None] * len(self.sentences)
+
+    # Sentences start back to back, but a sentence with a cue (see at()) waits until the screen reaches it,
+    # so the voice never runs ahead of what is shown.
+    def earliest(self, i):
+        if i == 0:
+            return LEAD
+        self.fill(i - 1)
+        return self.starts[i - 1] + self.audio[i - 1][1] + GAP
+
+    def fill(self, upto):
+        for j in range(upto + 1):
+            if self.starts[j] is None:
+                self.starts[j] = self.earliest(j)
+
+    @property
+    def schedule(self):
+        self.fill(len(self.sentences) - 1)
+        return [(st, st + d, s, wav) for st, (wav, d), s in zip(self.starts, self.audio, self.sentences)]
+
+    @property
+    def narration_len(self):
+        a, e, _, _ = self.schedule[-1]
+        return e + TAIL
 
 
 # ---------------------------------------------------------------- Chrome DevTools
@@ -351,10 +370,13 @@ def make_thumbnail(path):
 # ---------------------------------------------------------------- scenes
 
 def at(scene, browser, i, extra=0.0):
-    """Wait until sentence i of the narration begins (keeps actions in step with the voice)."""
-    target = scene.schedule[i][0] + extra
+    """Cue sentence i: wait until the voice is free to say it, then start it now (later if the screen was slow)."""
+    if scene.starts[i] is not None:
+        return
+    target = scene.earliest(i) + extra
     while time.time() - browser.t0 < target:
         time.sleep(0.02)
+    scene.starts[i] = max(target, time.time() - browser.t0)
 
 
 def s_problem(sc, b):
@@ -444,9 +466,10 @@ def s_company(sc, b):
     b.act.js("__demo.waitFor('#gh-res.ok:not(:empty)', 60000)")
     b.act.js("(async () => { while (document.getElementById('gh-res').textContent.includes('Reading')) await new Promise(r => setTimeout(r, 100)); })()")
     b.act.js("__demo.point('#gh-res', 600)")
-    at(sc, b, 2)
+    time.sleep(1.2)
     b.act.js("__demo.click('#dclose')")
     b.act.js("__demo.waitFor('.chip')")
+    at(sc, b, 2)
     b.act.js("__demo.click([...document.querySelectorAll('.chip')].find(c => /ask about/i.test(c.textContent)) || '.chip')")
     b.act.js("__demo.waitFor('.answer')")
 
