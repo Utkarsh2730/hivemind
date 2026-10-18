@@ -3,411 +3,467 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Company Brain — Your company's knowledge, connected</title>
-<meta name="description" content="Company Brain connects your docs, tickets, chats and repositories in one knowledge graph. Get cited answers about ownership, expertise and decisions, and generate PRDs and sprint plans.">
+<title>Company Brain — The memory your company never had</title>
+<meta name="description" content="Company Brain turns your docs, tickets, chats and repositories into one knowledge graph. Ask who owns what, who knows what and why decisions were made — with sources — and generate PRDs and sprint plans.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://images.unsplash.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#ffffff;--alt:#f3fafc;--panel:#ffffff;--sunken:#f1f5f9;--line:#e2e8f0;--line2:#cbd5e1;
-  --ink:#0b1b2b;--ink2:#334155;--muted:#5b6b7f;--dim:#94a3b8;
-  --aqua:#06b6d4;--teal:#0891b2;--deep:#0e7490;--ocean:#1d4ed8;--navy:#0b1f33;--mint:#10b981;--violet:#7c3aed;--amber:#f59e0b;--rose:#e11d48;
-  --grad:linear-gradient(135deg,#06b6d4 0%,#0891b2 45%,#1d4ed8 100%);
-  --grad-soft:linear-gradient(135deg,#ecfeff 0%,#eff6ff 100%);
-  --shadow:0 1px 2px rgba(11,27,43,.05),0 18px 50px rgba(8,145,178,.14);
-  --shadow-sm:0 1px 2px rgba(11,27,43,.06),0 6px 18px rgba(11,27,43,.08);
+  --paper:#fbf8f2;--paper2:#f4efe4;--card:#ffffff;--line:#e8e1d3;--line2:#d9cfbc;
+  --ink:#1b1838;--ink2:#3d3a5c;--muted:#6b6785;--dim:#a29fb6;
+  --indigo:#4338ca;--indigo2:#312e81;--night:#13112b;--night2:#1d1a45;
+  --amber:#f59e0b;--amber2:#d97706;--amber-soft:#fff4dc;--coral:#f97362;--sage:#3f9d78;
+  --serif:"Fraunces",Georgia,serif;
+  --shadow:0 1px 2px rgba(27,24,56,.06),0 20px 50px rgba(27,24,56,.12);
 }
 @media (prefers-color-scheme: dark){:root{
-  --bg:#06111c;--alt:#081827;--panel:#0b1d2e;--sunken:#0f2537;--line:#16304a;--line2:#1f3d5c;--ink:#eef6fb;--ink2:#cbd8e4;--muted:#93a7bb;--dim:#5f7891;
-  --grad-soft:linear-gradient(135deg,#062a33 0%,#0a1f3d 100%);--shadow:0 1px 2px rgba(0,0,0,.4),0 18px 50px rgba(0,0,0,.45);--shadow-sm:0 6px 18px rgba(0,0,0,.35)}}
+  --paper:#0f0e1d;--paper2:#141329;--card:#191734;--line:#2a2750;--line2:#37336a;--ink:#f3f1fb;--ink2:#d2cfe6;--muted:#a3a0c0;--dim:#6f6b93;
+  --amber-soft:#2d2210;--shadow:0 20px 50px rgba(0,0,0,.45)}}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-a{color:inherit}
-img{max-width:100%;display:block}
+html,body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}img{display:block;max-width:100%}
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
 .mono{font-family:"JetBrains Mono",monospace}
+.serif{font-family:var(--serif)}
 svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.grad-text{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
 
-/* nav */
-nav{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
-nav .wrap{display:flex;align-items:center;gap:30px;height:64px}
-.brand{display:flex;align-items:center;gap:10px;font-weight:700;text-decoration:none;font-size:16px;letter-spacing:-.01em}
-.mark{width:30px;height:30px;border-radius:9px;background:var(--grad);display:grid;place-items:center;box-shadow:0 6px 16px rgba(8,145,178,.35)}
-.mark svg{width:17px;height:17px;stroke:#fff;fill:none;stroke-width:2}
-nav .links{display:flex;gap:24px;font-size:14.5px;color:var(--muted)}
-nav .links a{text-decoration:none}nav .links a:hover{color:var(--ink)}
+/* ---------- nav (sits on the dark hero) ---------- */
+nav{position:absolute;top:0;left:0;right:0;z-index:5}
+nav .wrap{display:flex;align-items:center;gap:30px;height:72px;color:#e9e7ff}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none;font-size:16.5px}
+.mark{width:30px;height:30px;border-radius:8px;background:var(--amber);display:grid;place-items:center}
+.mark svg{width:18px;height:18px;stroke:var(--night);fill:none;stroke-width:2.2}
+nav .links{display:flex;gap:26px;font-size:14.5px;color:#b9b5e6}
+nav .links a{text-decoration:none}nav .links a:hover{color:#fff}
 nav .r{margin-left:auto;display:flex;gap:10px}
 
-/* buttons */
-.btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 20px;border-radius:10px;border:0;background:var(--grad);color:#fff;
-  font:600 15px Inter,sans-serif;cursor:pointer;text-decoration:none;white-space:nowrap;box-shadow:0 8px 22px rgba(8,145,178,.32);transition:transform .15s,box-shadow .15s}
-.btn:hover{transform:translateY(-1px);box-shadow:0 12px 28px rgba(8,145,178,.4)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:46px;padding:0 22px;border-radius:999px;border:0;background:var(--amber);color:var(--night);
+  font:600 15px Inter,sans-serif;cursor:pointer;text-decoration:none;white-space:nowrap;transition:transform .15s,background .15s}
+.btn:hover{background:#fbbf24;transform:translateY(-1px)}
 .btn:disabled{opacity:.6;cursor:default;transform:none}
-.btn.sec{background:var(--panel);color:var(--ink);border:1px solid var(--line2);box-shadow:none}
-.btn.sec:hover{background:var(--sunken)}
-.btn.sm{height:36px;padding:0 14px;font-size:14px}
-.btn.white{background:#fff;color:var(--deep);box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.btn.ghost{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.28)}
+.btn.ghost:hover{background:rgba(255,255,255,.08)}
+.btn.ink{background:var(--ink);color:var(--paper)}
+.btn.ink:hover{background:var(--indigo2)}
+.btn.sm{height:38px;padding:0 16px;font-size:14px}
 
-/* hero */
-.hero{position:relative;overflow:hidden;padding:72px 0 84px}
-.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.55;pointer-events:none}
-.blob.b1{width:520px;height:520px;background:#67e8f9;top:-160px;left:-120px}
-.blob.b2{width:460px;height:460px;background:#93c5fd;top:40px;right:-140px}
-.blob.b3{width:360px;height:360px;background:#6ee7b7;bottom:-180px;left:38%;opacity:.35}
-@media (prefers-color-scheme: dark){.blob{opacity:.22}}
-.hero .wrap{position:relative;display:grid;grid-template-columns:minmax(0,1.02fr) minmax(0,1fr);gap:56px;align-items:center}
-.pill{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:500;color:var(--deep);background:color-mix(in srgb,var(--aqua) 12%,var(--panel));
-  border:1px solid color-mix(in srgb,var(--aqua) 35%,transparent);border-radius:999px;padding:5px 14px 5px 6px;margin-bottom:22px}
-.pill b{background:var(--grad);color:#fff;border-radius:999px;padding:1px 9px;font-size:12px;font-weight:600}
-@media (prefers-color-scheme: dark){.pill{color:#67e8f9}}
-h1{font-size:clamp(38px,5.2vw,62px);line-height:1.04;letter-spacing:-.04em;font-weight:800;margin:0 0 20px}
-.lead{font-size:19px;line-height:1.6;color:var(--muted);margin:0 0 30px;max-width:560px}
+/* ---------- hero ---------- */
+.hero{position:relative;background:radial-gradient(900px 500px at 78% 30%,rgba(99,102,241,.35),transparent 65%),
+  radial-gradient(600px 400px at 10% 90%,rgba(245,158,11,.14),transparent 70%),linear-gradient(180deg,var(--night) 0%,var(--night2) 100%);
+  color:#fff;padding:140px 0 110px;overflow:hidden}
+.hero::after{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.08) 1px,transparent 1px);background-size:26px 26px;
+  mask-image:linear-gradient(180deg,#000,transparent);pointer-events:none}
+.hero .wrap{position:relative;z-index:1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:48px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:10px;font:500 13px "JetBrains Mono",monospace;color:#c9c5f5;letter-spacing:.02em;margin-bottom:22px}
+.eyebrow i{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px rgba(245,158,11,.2)}
+h1{font-family:var(--serif);font-weight:600;font-size:clamp(42px,5.6vw,72px);line-height:1.02;letter-spacing:-.025em;margin:0 0 22px}
+h1 em{font-style:italic;color:var(--amber);font-weight:500}
+.lead{font-size:19px;line-height:1.6;color:#c9c6ea;margin:0 0 32px;max-width:540px}
 .cta{display:flex;gap:12px;flex-wrap:wrap}
-.trust{display:flex;align-items:center;gap:12px;margin-top:30px;color:var(--muted);font-size:14px}
-.faces{display:flex}
-.faces img{width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid var(--bg);margin-left:-9px}
-.faces img:first-child{margin-left:0}
-.visual{position:relative}
-.frame{border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--panel)}
-.frame .bar{display:flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-bottom:1px solid var(--line);background:var(--alt)}
-.frame .bar i{width:10px;height:10px;border-radius:50%}
-.frame .bar i:nth-child(1){background:#fb7185}.frame .bar i:nth-child(2){background:#fbbf24}.frame .bar i:nth-child(3){background:#34d399}
-.photo-card{position:absolute;border-radius:14px;overflow:hidden;border:4px solid var(--panel);box-shadow:var(--shadow-sm)}
-.photo-card img{width:100%;height:100%;object-fit:cover}
-.pc1{width:190px;height:136px;left:-56px;bottom:-40px;transform:rotate(-4deg)}
-.pc2{width:150px;height:112px;right:-28px;top:-38px;transform:rotate(5deg)}
-.float{position:absolute;display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;
-  box-shadow:var(--shadow-sm);font-size:13px;line-height:1.35;animation:bob 6s ease-in-out infinite}
-.float b{display:block;font-size:13.5px}
-.float span{color:var(--muted)}
-.float .ic{width:32px;height:32px;border-radius:9px;display:grid;place-items:center;color:#fff;flex:none}
-.f1{right:-34px;bottom:56px}.f2{left:-40px;top:70px;animation-delay:-3s}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.hero-note{margin-top:26px;font-size:13.5px;color:#9893c9;display:flex;gap:18px;flex-wrap:wrap}
+.hero-note span{display:flex;align-items:center;gap:6px}
+.hero-note svg{width:15px;height:15px;color:var(--amber)}
 
-/* logos */
-.strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--alt);padding:26px 0}
-.strip .wrap{display:flex;align-items:center;gap:14px 34px;flex-wrap:wrap;justify-content:center}
-.strip .t{font-size:13px;color:var(--muted);margin-right:6px}
-.brandchip{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;color:var(--ink2)}
-.brandchip i{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:#fff;font:700 11px Inter,sans-serif;font-style:normal}
+/* live graph */
+.live{position:relative;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.1);backdrop-filter:blur(4px);padding:14px}
+.live svg.g{width:100%;height:auto;display:block}
+.live .edge{stroke:rgba(201,197,245,.18);stroke-width:1.2;transition:stroke .5s,stroke-width .5s}
+.live .edge.on{stroke:var(--amber);stroke-width:2.2}
+.live .node circle{transition:r .4s,opacity .5s,fill .4s}
+.live .node text{font:500 11px Inter,sans-serif;fill:#d9d6fb;transition:opacity .5s}
+.live .node.dim circle{opacity:.35}.live .node.dim text{opacity:.25}
+.live .node.on circle{stroke:#fff;stroke-width:2}
+.live .node.on text{fill:#fff;font-weight:600}
+.float{animation:fl 7s ease-in-out infinite}
+@keyframes fl{0%,100%{transform:translate(0,0)}50%{transform:translate(0,-4px)}}
+.qa{margin-top:10px;background:rgba(19,17,43,.75);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;min-height:118px}
+.qa .q{font:500 13px "JetBrains Mono",monospace;color:var(--amber);margin-bottom:6px}
+.qa .a{font-size:14.5px;line-height:1.55;color:#ecebff;min-height:44px}
+.qa .src{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap}
+.qa .src span{font:500 11px "JetBrains Mono",monospace;color:#c9c5f5;border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:1px 6px}
+.caret{display:inline-block;width:7px;height:15px;background:var(--amber);vertical-align:-2px;margin-left:2px;animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#a9a5d8;margin:8px 4px 0}
+.legend span{display:flex;align-items:center;gap:6px}.legend i{width:8px;height:8px;border-radius:50%}
 
-/* sections */
-section.band{padding:96px 0}
-section.alt{background:var(--alt)}
-.center{text-align:center}
-.kicker{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
-h2{font-size:clamp(28px,3.6vw,42px);line-height:1.12;letter-spacing:-.03em;font-weight:800;margin:0 0 14px}
-.sub{color:var(--muted);font-size:17.5px;max-width:640px;margin:0 0 48px}
-.center .sub{margin-left:auto;margin-right:auto}
+/* ---------- sections ---------- */
+section{padding:104px 0}
+.sec-head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end;margin-bottom:52px}
+.label{font:500 13px "JetBrains Mono",monospace;color:var(--amber2);letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.label::before{content:"";width:22px;height:1px;background:currentColor}
+h2{font-family:var(--serif);font-weight:600;font-size:clamp(32px,4vw,50px);line-height:1.06;letter-spacing:-.02em;margin:0}
+h2 em{font-style:italic;color:var(--indigo);font-weight:500}
+@media (prefers-color-scheme: dark){h2 em{color:#a5b4fc}}
+.sec-head p{color:var(--muted);font-size:17.5px;margin:0}
 
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.feat{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:26px;transition:transform .2s,box-shadow .2s}
-.feat:hover{transform:translateY(-3px);box-shadow:var(--shadow-sm)}
-.feat .ic{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#fff;margin-bottom:16px}
-.feat h3{margin:0 0 6px;font-size:17px;font-weight:700}
-.feat p{margin:0;color:var(--muted);font-size:15px;line-height:1.6}
-.c-aqua{background:linear-gradient(135deg,#22d3ee,#0891b2)}.c-blue{background:linear-gradient(135deg,#60a5fa,#1d4ed8)}
-.c-mint{background:linear-gradient(135deg,#34d399,#059669)}.c-violet{background:linear-gradient(135deg,#a78bfa,#6d28d9)}
-.c-amber{background:linear-gradient(135deg,#fbbf24,#d97706)}.c-rose{background:linear-gradient(135deg,#fb7185,#e11d48)}
+/* rail of sources */
+.rail{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--paper2)}
+.rail .wrap{display:flex;align-items:center;gap:18px 40px;flex-wrap:wrap;padding-top:22px;padding-bottom:22px;font:500 14px "JetBrains Mono",monospace;color:var(--muted)}
+.rail b{color:var(--ink);font:600 14px Inter,sans-serif;margin-right:4px}
+.rail span{display:flex;align-items:center;gap:8px}.rail span::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--amber)}
 
-.show{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:64px;align-items:center;margin-bottom:96px}
-.show.rev{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
-.show:last-child{margin-bottom:0}
-.show.rev .txt{order:2}
-.show h3{font-size:30px;line-height:1.15;letter-spacing:-.025em;font-weight:800;margin:0 0 14px}
-.show p{color:var(--muted);font-size:17px;margin:0 0 20px}
-.checks{list-style:none;padding:0;margin:0;display:grid;gap:10px}
-.checks li{display:flex;gap:10px;align-items:flex-start;font-size:15.5px;color:var(--ink2)}
-.checks li i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:#fff;flex:none;margin-top:1px}
-.checks li i svg{width:13px;height:13px;stroke-width:3}
-.tag{display:inline-block;font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:999px;margin-bottom:14px}
-.t-aqua{background:color-mix(in srgb,var(--aqua) 14%,transparent);color:var(--deep)}
-.t-blue{background:color-mix(in srgb,var(--ocean) 12%,transparent);color:var(--ocean)}
-.t-rose{background:color-mix(in srgb,var(--rose) 12%,transparent);color:var(--rose)}
-@media (prefers-color-scheme: dark){.t-aqua{color:#67e8f9}.t-blue{color:#93c5fd}.t-rose{color:#fda4af}}
-.shotwrap{position:relative}
-.shotwrap::before{content:"";position:absolute;inset:-18px -18px 18px 18px;border-radius:22px;background:var(--grad-soft);z-index:0}
-.shotwrap.sw2::before{background:linear-gradient(135deg,#eef2ff,#ecfeff)}
-.shotwrap.sw3::before{background:linear-gradient(135deg,#fff1f2,#eff6ff)}
-@media (prefers-color-scheme: dark){.shotwrap::before,.shotwrap.sw2::before,.shotwrap.sw3::before{background:var(--grad-soft)}}
-.shotwrap .frame{position:relative;z-index:1}
+/* bento */
+.bento{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:minmax(150px,auto);gap:16px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:26px;position:relative;overflow:hidden}
+.tile h3{font-family:var(--serif);font-weight:600;font-size:23px;line-height:1.15;margin:0 0 8px;letter-spacing:-.01em}
+.tile p{margin:0;color:var(--muted);font-size:15px}
+.tile .num{font:500 12px "JetBrains Mono",monospace;color:var(--dim);margin-bottom:18px}
+.t-big{grid-column:span 4;grid-row:span 2;background:var(--indigo2);color:#fff;border:0;display:flex;flex-direction:column}
+.t-big p{color:#c9c6ea}.t-big .num{color:#8f8ad6}
+.t-big .shot{margin-top:22px;border-radius:12px 12px 0 0;overflow:hidden;box-shadow:0 -10px 40px rgba(0,0,0,.35);margin-bottom:-26px;flex:1}
+.t-big .shot img{width:100%;height:100%;object-fit:cover;object-position:left top}
+.t-amber{grid-column:span 2;background:var(--amber-soft);border-color:#f6dfb0}
+@media (prefers-color-scheme: dark){.t-amber{border-color:#4a3714}}
+.t-2{grid-column:span 2}.t-3{grid-column:span 3}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.chips span{font:500 11.5px "JetBrains Mono",monospace;background:var(--paper2);border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--ink2)}
+.t-amber .chips span{background:rgba(255,255,255,.6)}
+.meter{display:grid;gap:8px;margin-top:16px}
+.meter div{display:grid;grid-template-columns:96px 1fr;align-items:center;gap:10px;font-size:13px;color:var(--ink2)}
+.meter i{height:8px;border-radius:99px;background:linear-gradient(90deg,var(--indigo),#818cf8)}
 
-/* photo band */
-.people{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:56px;align-items:center}
-.collage{display:grid;grid-template-columns:1.2fr 1fr;grid-template-rows:200px 200px;gap:14px}
-.collage img{width:100%;height:100%;object-fit:cover;border-radius:16px;box-shadow:var(--shadow-sm)}
-.collage img:first-child{grid-row:span 2}
-.quote{font-size:22px;line-height:1.5;font-weight:500;letter-spacing:-.01em;margin:0 0 20px}
-.who{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:14.5px}
-.who img{width:44px;height:44px;border-radius:50%;object-fit:cover}
-.who b{color:var(--ink);display:block}
+/* tour */
+.tour{background:var(--paper2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:5px;width:max-content;margin-bottom:28px;max-width:100%;overflow-x:auto}
+.tabs button{border:0;background:none;border-radius:999px;padding:9px 18px;font:500 14.5px Inter,sans-serif;color:var(--muted);cursor:pointer;white-space:nowrap}
+.tabs button.on{background:var(--ink);color:var(--paper)}
+.tourgrid{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.5fr);gap:44px;align-items:center}
+.pane{display:none}.pane.on{display:block;animation:fade .35s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.pane h3{font-family:var(--serif);font-weight:600;font-size:30px;line-height:1.12;margin:0 0 12px}
+.pane p{color:var(--muted);font-size:16.5px;margin:0 0 18px}
+.ticks{list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.ticks li{display:flex;gap:10px;font-size:15px;color:var(--ink2)}
+.ticks li::before{content:"→";color:var(--amber2);font-weight:700}
+.screen{border-radius:16px;overflow:hidden;border:1px solid var(--line);box-shadow:var(--shadow);background:var(--card)}
+.screen .bar{height:30px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 12px;background:var(--paper2)}
+.screen .bar i{width:9px;height:9px;border-radius:50%;background:var(--line2)}
 
-/* stats */
-.stats{background:radial-gradient(800px 300px at 15% 0%,rgba(34,211,238,.35),transparent 60%),radial-gradient(700px 300px at 90% 100%,rgba(59,130,246,.35),transparent 60%),linear-gradient(135deg,#0b2a3f,#0b1f33 55%,#10255a);
-  color:#fff;padding:72px 0}
-.stats .wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
-.stat b{display:block;font-size:44px;font-weight:800;letter-spacing:-.03em;background:linear-gradient(135deg,#a5f3fc,#93c5fd);-webkit-background-clip:text;background-clip:text;color:transparent}
-.stat span{color:#b8cfe0;font-size:15px}
+/* people */
+.people{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:56px;align-items:center}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.photos figure{margin:0;position:relative;border-radius:18px;overflow:hidden;aspect-ratio:3/4}
+.photos figure:nth-child(2){margin-top:44px}
+.photos img{width:100%;height:100%;object-fit:cover;filter:grayscale(1) contrast(1.05)}
+.photos figure::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(67,56,202,.15),rgba(49,46,129,.55));mix-blend-mode:multiply}
+.photos figcaption{position:absolute;left:12px;bottom:12px;z-index:1;font:500 11.5px "JetBrains Mono",monospace;color:#fff;background:rgba(19,17,43,.55);border-radius:6px;padding:3px 8px}
+.pull{font-family:var(--serif);font-size:30px;line-height:1.25;letter-spacing:-.01em;margin:0 0 22px}
+.pull em{color:var(--amber2)}
 
-/* integrations */
-.ints{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.int{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
-.int i{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;color:#fff;font:800 15px Inter,sans-serif;font-style:normal;flex:none}
-.int b{display:block;font-size:15.5px}
-.int span{color:var(--muted);font-size:13.5px}
+/* numbers */
+.numbers{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+.numbers div{padding:30px 24px 0 0;border-right:1px solid var(--line);margin-right:24px}
+.numbers div:last-child{border-right:0}
+.numbers b{display:block;font-family:var(--serif);font-weight:600;font-size:58px;line-height:1;letter-spacing:-.03em;color:var(--indigo)}
+@media (prefers-color-scheme: dark){.numbers b{color:#a5b4fc}}
+.numbers span{display:block;color:var(--muted);font-size:15px;margin-top:10px}
 
-/* steps */
-.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
-.step{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px;position:relative;overflow:hidden}
-.step .n{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:700;margin-bottom:16px;background:var(--grad)}
-.step h3{margin:0 0 6px;font-size:18px;font-weight:700}
-.step p{margin:0;color:var(--muted);font-size:15px}
+/* flow */
+.flow{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:28px;align-items:center}
+.col h4{font:500 12.5px "JetBrains Mono",monospace;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);margin:0 0 12px}
+.tool{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:10px}
+.tool i{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font:700 13px Inter,sans-serif;font-style:normal;flex:none}
+.tool b{display:block;font-size:15px}.tool span{color:var(--muted);font-size:13px}
+.core{width:190px;height:190px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#6366f1,var(--indigo2) 60%,var(--night));color:#fff;display:grid;place-items:center;text-align:center;
+  box-shadow:0 0 0 12px rgba(67,56,202,.08),0 0 0 26px rgba(67,56,202,.05),var(--shadow);position:relative}
+.core b{font-family:var(--serif);font-size:22px;font-weight:600;display:block}
+.core span{font:500 11.5px "JetBrains Mono",monospace;color:#c9c5f5}
+.arrow{color:var(--amber2);font-size:22px;text-align:center}
 
-/* final cta */
-.final{position:relative;overflow:hidden;border-radius:24px;padding:56px;color:#fff;
-  background:radial-gradient(600px 300px at 0% 0%,rgba(103,232,249,.45),transparent 60%),var(--grad);display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
-.final h2{color:#fff}
-.final p{color:#e0f7fb;font-size:17px;margin:0}
-.final .card{background:rgba(255,255,255,.98);color:var(--ink);border-radius:16px;padding:24px;box-shadow:0 20px 50px rgba(0,0,0,.2)}
-@media (prefers-color-scheme: dark){.final .card{background:var(--panel)}}
-.final .card h3{margin:0 0 4px;font-size:18px}
-.final .card p{color:var(--muted);font-size:14.5px;margin:0 0 16px}
+/* timeline */
+.timeline{display:grid;grid-template-columns:repeat(3,1fr);gap:32px;position:relative;margin-top:10px}
+.timeline::before{content:"";position:absolute;left:0;right:0;top:20px;height:2px;background:repeating-linear-gradient(90deg,var(--line2) 0 8px,transparent 8px 14px)}
+.stepx{position:relative}
+.stepx .dot{width:42px;height:42px;border-radius:50%;background:var(--paper);border:2px solid var(--indigo);display:grid;place-items:center;font:600 15px var(--serif);color:var(--indigo);margin-bottom:18px;position:relative}
+.stepx h3{font-family:var(--serif);font-size:24px;font-weight:600;margin:0 0 8px}
+.stepx p{color:var(--muted);margin:0;font-size:15.5px}
+
+/* final */
+.final{background:radial-gradient(700px 360px at 85% 20%,rgba(99,102,241,.4),transparent 65%),linear-gradient(160deg,var(--night),var(--night2));color:#fff;border-radius:28px;padding:64px;
+  display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:48px;align-items:center;position:relative;overflow:hidden}
+.final h2{color:#fff}.final h2 em{color:var(--amber)}
+.final p{color:#c9c6ea;font-size:17px;margin:16px 0 0}
+.signup{background:#fff;color:#1b1838;border-radius:20px;padding:26px}
+@media (prefers-color-scheme: dark){.signup{background:var(--card);color:var(--ink)}}
+.signup h3{font-family:var(--serif);font-size:22px;margin:0 0 4px}
+.signup p{color:var(--muted);font-size:14.5px;margin:0 0 16px}
 form.row{display:flex;gap:8px}
-input{flex:1;min-width:0;height:44px;background:var(--panel);border:1px solid var(--line2);color:var(--ink);border-radius:10px;padding:0 14px;font:15px Inter,sans-serif}
-input:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px color-mix(in srgb,var(--aqua) 22%,transparent)}
-.err{color:var(--rose);font-size:13.5px;margin-top:8px;min-height:1em}
+input{flex:1;min-width:0;height:46px;background:var(--paper);border:1px solid var(--line2);color:var(--ink);border-radius:999px;padding:0 18px;font:15px Inter,sans-serif}
+input:focus{outline:none;border-color:var(--indigo);box-shadow:0 0 0 3px rgba(67,56,202,.15)}
+.err{color:#dc2626;font-size:13.5px;margin-top:8px;min-height:1em}
 .done{display:none}.done.show{display:block}
-.okline{display:flex;align-items:center;gap:8px;color:var(--mint);font-weight:600;margin-bottom:6px}
-.warn{color:var(--muted);font-size:13.5px;line-height:1.5;margin-bottom:10px}
-.link{font:12px/1.5 "JetBrains Mono",monospace;word-break:break-all;background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
-.demo-link{display:inline-flex;align-items:center;gap:6px;color:var(--teal);font-weight:600;font-size:14.5px;margin-top:14px;text-decoration:none}
+.okline{color:var(--sage);font-weight:600;margin-bottom:4px}
+.warn{color:var(--muted);font-size:13.5px;margin-bottom:10px}
+.link{font:12px/1.5 "JetBrains Mono",monospace;word-break:break-all;background:var(--paper2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
 
-footer{background:var(--navy);color:#9fb6cb;padding:40px 0;font-size:14px;margin-top:96px}
-footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
-footer .brand{color:#fff}
-footer a{color:#cfe3f1}
+footer{padding:40px 0 48px;color:var(--muted);font-size:14px}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--line);padding-top:28px}
+footer .mark{width:24px;height:24px}
 
-@media (max-width:960px){
-  .hero .wrap,.show,.people,.final{grid-template-columns:1fr}
-  .show.rev .txt{order:0}
-  .grid,.ints,.steps{grid-template-columns:1fr 1fr}
-  .stats .wrap{grid-template-columns:1fr 1fr}
+@media (max-width:980px){
+  .hero .wrap,.sec-head,.tourgrid,.people,.final{grid-template-columns:1fr}
+  .bento{grid-template-columns:repeat(2,1fr)}.t-big,.t-amber,.t-2,.t-3{grid-column:span 2}.t-big{grid-row:auto}
+  .numbers{grid-template-columns:1fr 1fr}.numbers div{border-right:0;padding-bottom:20px}
+  .flow{grid-template-columns:1fr}.core{margin:0 auto}.arrow{transform:rotate(90deg)}
+  .timeline{grid-template-columns:1fr}.timeline::before{display:none}
   nav .links{display:none}
-  .pc1{left:-10px}.pc2{right:-6px}.f2{left:-10px}.f1{right:-6px}
 }
 @media (max-width:600px){
-  .wrap{padding:0 16px}.hero{padding-top:44px}
-  .grid,.ints,.steps{grid-template-columns:1fr}
-  form.row{flex-direction:column}
-  .final{padding:28px}
-  .photo-card,.float{display:none}
-  .collage{grid-template-rows:150px 150px}
-  nav .r .sec{display:none}
+  .wrap{padding:0 16px}.hero{padding:110px 0 70px}
+  .final{padding:28px}form.row{flex-direction:column}
+  .photos{grid-template-columns:1fr 1fr}.photos figure:nth-child(3){display:none}
+  nav .r .ghost{display:none}
 }
 </style>
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/></symbol>
-  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
-  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
-  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5M12 7v5l3 3"/></symbol>
-  <symbol id="i-risk" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
-  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
-  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
-  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-cite" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="i-free" viewBox="0 0 24 24"><path d="M20 12v9H4v-9M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></symbol>
 </svg>
 
 <nav><div class="wrap">
   <a class="brand" href="/"><span class="mark"><svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7h8M7 9l4 6M17 9l-4 6"/></svg></span>Company Brain</a>
-  <div class="links"><a href="#product">Product</a><a href="#showcase">Features</a><a href="#integrations">Integrations</a><a href="#how">How it works</a></div>
-  <div class="r"><a class="btn sec sm" href="/w/demo">Live demo</a><a class="btn sm" href="#start">Get started</a></div>
+  <div class="links"><a href="#features">Features</a><a href="#tour">Product tour</a><a href="#connect">Integrations</a><a href="#how">How it works</a></div>
+  <div class="r"><a class="btn ghost sm" href="/w/demo">Live demo</a><a class="btn sm" href="#start">Get started</a></div>
 </div></nav>
 
 <header class="hero">
-  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
   <div class="wrap">
     <div>
-      <div class="pill"><b>New</b> Slack, Jira and GitHub connections</div>
-      <h1>Your company's knowledge, <span class="grad-text">connected and cited.</span></h1>
-      <p class="lead">Company Brain links your documents, tickets, chats and repositories into one knowledge graph. Ask who owns what, who knows what and why decisions were made — then turn the answers into PRDs and sprint plans.</p>
-      <div class="cta"><a class="btn" href="#start">Create a free workspace <svg class="i"><use href="#i-arrow"/></svg></a><a class="btn sec" href="/w/demo">Explore the live demo</a></div>
-      <div class="trust">
-        <div class="faces">
-          <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=120&h=120&q=60&auto=format&fit=crop&crop=faces" alt="">
-          <img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?w=120&h=120&q=60&auto=format&fit=crop&crop=faces" alt="">
-          <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=120&h=120&q=60&auto=format&fit=crop&crop=faces" alt="">
-        </div>
-        Built for engineering, product and operations teams
+      <div class="eyebrow"><i></i>KNOWLEDGE GRAPH · POWERED BY FALKORDB</div>
+      <h1>The memory your company <em>never had.</em></h1>
+      <p class="lead">Every doc, ticket, chat and commit becomes part of one living graph. Ask who knows what and why a decision was made — and get an answer with its sources, not a guess.</p>
+      <div class="cta"><a class="btn" href="#start">Start free <svg class="i"><use href="#i-arrow"/></svg></a><a class="btn ghost" href="/w/demo">Try the live demo</a></div>
+      <div class="hero-note">
+        <span><svg class="i"><use href="#i-cite"/></svg>Every answer cited</span>
+        <span><svg class="i"><use href="#i-lock"/></svg>Private graph per company</span>
+        <span><svg class="i"><use href="#i-free"/></svg>Free to start</span>
       </div>
     </div>
-    <div class="visual">
-      <div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="/static/hero.png" alt="Company Brain answering why checkout is blocked, with the related part of the knowledge graph highlighted"></div>
-      <div class="photo-card pc2"><img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&q=70&auto=format&fit=crop" alt="Team planning a sprint with sticky notes"></div>
-      <div class="photo-card pc1"><img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?w=480&h=340&q=70&auto=format&fit=crop" alt="Engineers working together at laptops"></div>
-      <div class="float f1"><span class="ic c-mint"><svg class="i"><use href="#i-check"/></svg></span><div><b>Answer cited</b><span>PAY-52 · GRW-7</span></div></div>
-      <div class="float f2"><span class="ic c-rose"><svg class="i"><use href="#i-history"/></svg></span><div><b>DEC-1 outdated</b><span>Replaced by DEC-8</span></div></div>
+
+    <div class="live" aria-label="Animated example: a question lights up the path through the knowledge graph">
+      <svg class="g" id="g" viewBox="0 0 560 330"></svg>
+      <div class="legend">
+        <span><i style="background:#818cf8"></i>Person</span><span><i style="background:#34d399"></i>Project</span>
+        <span><i style="background:#38bdf8"></i>System</span><span><i style="background:#c4b5fd"></i>Document</span><span><i style="background:#fb7185"></i>Decision</span>
+      </div>
+      <div class="qa"><div class="q" id="qq"></div><div class="a" id="qa"></div><div class="src" id="qs"></div></div>
     </div>
   </div>
 </header>
 
-<div class="strip"><div class="wrap">
-  <span class="t">Connects with</span>
-  <span class="brandchip"><i style="background:#4a154b">S</i>Slack</span>
-  <span class="brandchip"><i style="background:#0052cc">J</i>Jira</span>
-  <span class="brandchip"><i style="background:#5e6ad2">L</i>Linear</span>
-  <span class="brandchip"><i style="background:#24292f">G</i>GitHub</span>
-  <span class="brandchip"><i style="background:#4b53bc">T</i>Microsoft Teams</span>
-  <span class="brandchip"><i style="background:#5865f2">D</i>Discord</span>
-  <span class="brandchip"><i style="background:#d97757">C</i>Claude</span>
+<div class="rail"><div class="wrap">
+  <b>Learns from</b><span>Slack</span><span>Jira</span><span>Linear</span><span>GitHub</span><span>Docs &amp; notes</span><span>Teams via Zapier</span>
 </div></div>
 
-<section class="band" id="product"><div class="wrap center">
-  <div class="kicker">Product</div>
-  <h2>Answers your team can <span class="grad-text">verify</span>.</h2>
-  <p class="sub">Every answer and every generated document is grounded in graph queries and links back to the original source.</p>
-  <div class="grid" style="text-align:left">
-    <div class="feat"><div class="ic c-aqua"><svg class="i"><use href="#i-quote"/></svg></div><h3>Cited answers</h3><p>Ask in plain language. Answers reference the documents, tickets and messages they come from, and the graph shows the path.</p></div>
-    <div class="feat"><div class="ic c-blue"><svg class="i"><use href="#i-user"/></svg></div><h3>Real expertise</h3><p>Find who actually knows a system from what they wrote, fixed and were credited for — alongside formal ownership.</p></div>
-    <div class="feat"><div class="ic c-violet"><svg class="i"><use href="#i-history"/></svg></div><h3>Decision history</h3><p>Trace every decision to the meeting or thread where it was made. Replaced decisions are marked outdated automatically.</p></div>
-    <div class="feat"><div class="ic c-mint"><svg class="i"><use href="#i-doc"/></svg></div><h3>PRDs and sprint plans</h3><p>Generate documents from live project data: blockers first, owners from assignments and expertise, risks flagged.</p></div>
-    <div class="feat"><div class="ic c-amber"><svg class="i"><use href="#i-risk"/></svg></div><h3>Knowledge risks</h3><p>Graph algorithms surface key connectors, single points of failure, stalled work and knowledge no one is linked to.</p></div>
-    <div class="feat"><div class="ic c-rose"><svg class="i"><use href="#i-lock"/></svg></div><h3>Private workspaces</h3><p>Each company gets its own graph and access key. Agent queries are read-only, and connection secrets are never exposed.</p></div>
+<section id="features"><div class="wrap">
+  <div class="sec-head">
+    <div><div class="label">Features</div><h2>Not a search box. <em>A brain</em> that connects the dots.</h2></div>
+    <p>Company Brain models people, projects, systems, documents and decisions as a graph — so it can follow the relationships a keyword search can't.</p>
+  </div>
+  <div class="bento">
+    <div class="tile t-big">
+      <div class="num">01 — ASK</div>
+      <h3 style="font-size:30px">Answers with receipts.</h3>
+      <p>Ask anything in plain language. Every claim links to the ticket, document or message it came from, and the graph shows the path.</p>
+      <div class="shot"><img src="/static/hero.png" alt="A cited answer next to the highlighted knowledge graph"></div>
+    </div>
+    <div class="tile t-amber">
+      <div class="num">02 — EXPERTISE</div>
+      <h3>Who actually knows.</h3>
+      <p>Expertise from evidence — what people wrote, fixed and were thanked for — not the org chart.</p>
+      <div class="meter"><div>Tomas S.<i style="width:92%"></i></div><div>Priya N.<i style="width:44%"></i></div><div>Sam O.<i style="width:40%"></i></div></div>
+    </div>
+    <div class="tile t-2">
+      <div class="num">03 — DECISIONS</div>
+      <h3>Why it's this way.</h3>
+      <p>Each decision traced to its meeting or thread. Replaced ones are marked outdated automatically.</p>
+    </div>
+    <div class="tile t-3">
+      <div class="num">04 — PLANNING</div>
+      <h3>PRDs and sprint plans from live data.</h3>
+      <p>Blockers scheduled first, owners from assignments and expertise, risks flagged — every line cited.</p>
+      <div class="chips"><span>P0 · PAY-52</span><span>Owner: Zara A.</span><span>Blocks GRW-7</span><span>Export .md / PDF</span></div>
+    </div>
+    <div class="tile t-3">
+      <div class="num">05 — RISKS</div>
+      <h3>Single points of failure, found.</h3>
+      <p>FalkorDB graph algorithms reveal key connectors, one-person systems, stalled work and orphaned knowledge.</p>
+      <div class="chips"><span>betweenness</span><span>pageRank</span><span>connected components</span></div>
+    </div>
   </div>
 </div></section>
 
-<section class="band alt" id="showcase"><div class="wrap">
-  <div class="show">
-    <div class="txt">
-      <span class="tag t-aqua">Ask</span>
-      <h3>Know who to ask, and why things are the way they are.</h3>
-      <p>The agent follows real relationships — who wrote what, who fixed what, which meeting made which call — instead of guessing.</p>
-      <ul class="checks">
-        <li><i class="c-aqua"><svg class="i"><use href="#i-check"/></svg></i>Every claim cited to a document, ticket or message</li>
-        <li><i class="c-aqua"><svg class="i"><use href="#i-check"/></svg></i>The graph highlights exactly what the answer used</li>
-        <li><i class="c-aqua"><svg class="i"><use href="#i-check"/></svg></i>Also available in Slack with <span class="mono">/brain</span></li>
-      </ul>
-    </div>
-    <div class="shotwrap"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="/static/hero.png" alt="Cited answer with highlighted knowledge graph"></div></div>
+<section class="tour" id="tour"><div class="wrap">
+  <div class="sec-head">
+    <div><div class="label">Product tour</div><h2>See it <em>work</em>.</h2></div>
+    <p>Real screens from the Lumen Pay demo workspace — open it yourself, no sign-up needed.</p>
   </div>
-  <div class="show rev">
-    <div class="txt">
-      <span class="tag t-blue">Plan</span>
-      <h3>Sprint plans and PRDs that start from facts.</h3>
-      <p>Pick a project. Company Brain gathers its decisions, open tickets, blockers and experts, and writes a plan your team can act on.</p>
-      <ul class="checks">
-        <li><i class="c-blue"><svg class="i"><use href="#i-check"/></svg></i>Blockers scheduled before the work they block</li>
-        <li><i class="c-blue"><svg class="i"><use href="#i-check"/></svg></i>Owners from assignments or hands-on expertise</li>
-        <li><i class="c-blue"><svg class="i"><use href="#i-check"/></svg></i>Export to Markdown or PDF, or post to a channel</li>
-      </ul>
+  <div class="tabs" id="tabs"><button class="on" data-p="0">Ask a question</button><button data-p="1">Plan a sprint</button><button data-p="2">Find risks</button></div>
+  <div class="tourgrid">
+    <div>
+      <div class="pane on"><h3>"Why is checkout blocked?"</h3><p>The agent follows the graph from the project to the ticket that blocks it, and to the person who can fix it.</p>
+        <ul class="ticks"><li>Each step of the search shown live</li><li>Sources listed and clickable</li><li>Also in Slack with <span class="mono">/brain</span></li></ul></div>
+      <div class="pane"><h3>A sprint plan in one click.</h3><p>Pick a project and length. The plan comes from its real tickets, blockers, decisions and experts.</p>
+        <ul class="ticks"><li>Blockers before blocked work</li><li>Owners from assignees or expertise</li><li>Share to Slack, Teams or Discord</li></ul></div>
+      <div class="pane"><h3>Know your bus factor.</h3><p>Graph algorithms surface where knowledge is concentrated and where work has quietly stalled.</p>
+        <ul class="ticks"><li>Key connectors across teams</li><li>Systems only one person knows</li><li>Tickets stuck or blocking others</li></ul></div>
     </div>
-    <div class="shotwrap sw2"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="/static/shot-sprint.png" alt="Generated sprint plan with prioritised backlog"></div></div>
-  </div>
-  <div class="show">
-    <div class="txt">
-      <span class="tag t-rose">Insights</span>
-      <h3>See knowledge risks before they become incidents.</h3>
-      <p>FalkorDB graph algorithms reveal who connects the organisation, where one person holds all the knowledge, and which work has stalled.</p>
-      <ul class="checks">
-        <li><i class="c-rose"><svg class="i"><use href="#i-check"/></svg></i>Key connectors via betweenness centrality</li>
-        <li><i class="c-rose"><svg class="i"><use href="#i-check"/></svg></i>Single-expert systems and stalled tickets</li>
-        <li><i class="c-rose"><svg class="i"><use href="#i-check"/></svg></i>Central topics via PageRank</li>
-      </ul>
-    </div>
-    <div class="shotwrap sw3"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img src="/static/shot-risks.png" alt="Knowledge risks found with graph algorithms"></div></div>
+    <div class="screen"><div class="bar"><i></i><i></i><i></i></div><img id="tourimg" src="/static/hero.png" alt="Product screen"></div>
   </div>
 </div></section>
 
-<section class="band"><div class="wrap people">
-  <div class="collage">
-    <img src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=900&q=70&auto=format&fit=crop" alt="A team collaborating around laptops" loading="lazy">
-    <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=600&h=420&q=70&auto=format&fit=crop" alt="Colleagues celebrating a shipped project" loading="lazy">
-    <img src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=600&h=420&q=70&auto=format&fit=crop" alt="Engineers working at their desks" loading="lazy">
+<section><div class="wrap people">
+  <div class="photos">
+    <figure><img src="https://images.unsplash.com/photo-1552664730-d307ca884978?w=500&h=660&q=70&auto=format&fit=crop" alt="Team planning with sticky notes"><figcaption>sprint planning</figcaption></figure>
+    <figure><img src="https://images.unsplash.com/photo-1551434678-e076c223a692?w=500&h=660&q=70&auto=format&fit=crop" alt="Engineers at their desks"><figcaption>on-call</figcaption></figure>
+    <figure><img src="https://images.unsplash.com/photo-1531482615713-2afd69097998?w=500&h=660&q=70&auto=format&fit=crop" alt="Engineers pairing at laptops"><figcaption>onboarding</figcaption></figure>
   </div>
   <div>
-    <div class="kicker">Why it matters</div>
-    <h2>Less searching. Fewer repeated questions. Faster onboarding.</h2>
-    <p class="quote">New engineers shouldn't have to ask the same five people the same questions. The answer, the decision behind it and the person who knows should be one search away.</p>
-    <ul class="checks">
-      <li><i class="c-mint"><svg class="i"><use href="#i-check"/></svg></i>Onboard faster with cited answers instead of tribal knowledge</li>
-      <li><i class="c-mint"><svg class="i"><use href="#i-check"/></svg></i>Stop re-litigating decisions — see what was decided, by whom, and why</li>
-      <li><i class="c-mint"><svg class="i"><use href="#i-check"/></svg></i>Spot single points of failure before someone goes on leave</li>
+    <div class="label">Why it matters</div>
+    <p class="pull">Knowledge leaves with people, hides in threads and repeats in meetings. <em>Company Brain keeps it.</em></p>
+    <ul class="ticks">
+      <li>New hires find the answer — and the person — without asking around</li>
+      <li>Decisions stop being re-argued: what, who, when and why are on record</li>
+      <li>Leaders see knowledge risks before someone goes on leave</li>
     </ul>
   </div>
-</div></section>
+</div>
+<div class="wrap" style="margin-top:84px"><div class="numbers">
+  <div><b>10/10</b><span>demo questions answered correctly, with sources</span></div>
+  <div><b>21</b><span>automated tests, Slack and webhooks included</span></div>
+  <div><b>&lt;1s</b><span>to import 400 documents, tickets and messages</span></div>
+  <div><b>1</b><span>private FalkorDB graph per company</span></div>
+</div></div></section>
 
-<div class="stats"><div class="wrap">
-  <div class="stat"><b>10/10</b><span>demo questions answered correctly, with sources</span></div>
-  <div class="stat"><b>21</b><span>automated tests, including Slack and webhook flows</span></div>
-  <div class="stat"><b>&lt;1s</b><span>to import 400 documents, tickets and messages</span></div>
-  <div class="stat"><b>9</b><span>tools connected: Slack, Jira, Linear, GitHub and more</span></div>
-</div></div>
-
-<section class="band" id="integrations"><div class="wrap center">
-  <div class="kicker">Integrations</div>
-  <h2>Works where your team <span class="grad-text">already works</span>.</h2>
-  <p class="sub">Knowledge flows in from your tools, and answers flow back out to your channels.</p>
-  <div class="ints" style="text-align:left">
-    <div class="int"><i style="background:#4a154b">S</i><div><b>Slack</b><span>Live messages, <span class="mono">/brain</span> answers, history import</span></div></div>
-    <div class="int"><i style="background:#0052cc">J</i><div><b>Jira</b><span>Issues and comments via webhook</span></div></div>
-    <div class="int"><i style="background:#5e6ad2">L</i><div><b>Linear</b><span>Issues and comments via webhook</span></div></div>
-    <div class="int"><i style="background:#24292f">G</i><div><b>GitHub</b><span>Repository import and webhooks</span></div></div>
-    <div class="int"><i style="background:#4b53bc">T</i><div><b>Microsoft Teams</b><span>Decision updates and shared answers</span></div></div>
-    <div class="int"><i style="background:#5865f2">D</i><div><b>Discord &amp; Google Chat</b><span>Decision updates and shared answers</span></div></div>
-    <div class="int"><i style="background:#ff4f00">Z</i><div><b>Zapier, Make, n8n</b><span>Notion, email and anything else</span></div></div>
-    <div class="int"><i style="background:#d97757">C</i><div><b>Claude Desktop &amp; Cursor</b><span>Use the brain through MCP</span></div></div>
-    <div class="int"><i class="c-aqua" style="background:var(--grad)">F</i><div><b>FalkorDB</b><span>One isolated graph per company</span></div></div>
+<section class="tour" id="connect"><div class="wrap">
+  <div class="sec-head">
+    <div><div class="label">Integrations</div><h2>In from your tools. <em>Out</em> to your channels.</h2></div>
+    <p>Connect once; new messages, issues and decisions keep the graph current, and answers go back where your team talks.</p>
+  </div>
+  <div class="flow">
+    <div class="col"><h4>Knowledge in</h4>
+      <div class="tool"><i style="background:#4a154b">S</i><div><b>Slack</b><span>Live messages &amp; history</span></div></div>
+      <div class="tool"><i style="background:#0052cc">J</i><div><b>Jira &amp; Linear</b><span>Issues and comments</span></div></div>
+      <div class="tool"><i style="background:#24292f">G</i><div><b>GitHub</b><span>Issues, PRs, comments</span></div></div>
+      <div class="tool"><i style="background:#ff4f00">Z</i><div><b>Zapier · Make · n8n</b><span>Notion, email, anything</span></div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:28px"><div class="arrow">→</div><div class="core"><div><b>Company<br>Brain</b><span>FalkorDB graph</span></div></div><div class="arrow">→</div></div>
+    <div class="col"><h4>Answers out</h4>
+      <div class="tool"><i style="background:#4a154b">/</i><div><b>Slack</b><span><span class="mono">/brain</span> answers &amp; decision alerts</span></div></div>
+      <div class="tool"><i style="background:#4b53bc">T</i><div><b>Microsoft Teams</b><span>Decision alerts &amp; shared plans</span></div></div>
+      <div class="tool"><i style="background:#5865f2">D</i><div><b>Discord &amp; Google Chat</b><span>Decision alerts &amp; shared plans</span></div></div>
+      <div class="tool"><i style="background:#d97757">C</i><div><b>Claude Desktop &amp; Cursor</b><span>Through MCP</span></div></div>
+    </div>
   </div>
 </div></section>
 
-<section class="band alt" id="how"><div class="wrap center">
-  <div class="kicker">How it works</div>
-  <h2>From scattered tools to one graph in minutes.</h2>
-  <p class="sub">No migration. Connect the tools you already use, or paste and upload what you have.</p>
-  <div class="steps" style="text-align:left">
-    <div class="step"><div class="n">1</div><h3>Connect</h3><p>Slack, Jira, Linear and GitHub, or upload documents, CSV and JSON. People, projects and systems are linked automatically.</p></div>
-    <div class="step"><div class="n">2</div><h3>Ask</h3><p>The agent queries the graph with full-text search, multi-hop Cypher and graph algorithms, and shows each step live.</p></div>
-    <div class="step"><div class="n">3</div><h3>Act</h3><p>Generate PRDs and sprint plans, and share answers and decisions to Slack, Microsoft Teams, Discord or Google Chat.</p></div>
+<section id="how"><div class="wrap">
+  <div class="sec-head"><div><div class="label">How it works</div><h2>Up and running <em>before lunch.</em></h2></div>
+    <p>No migration and no new habits. Your team keeps using the tools it already has.</p></div>
+  <div class="timeline">
+    <div class="stepx"><div class="dot">1</div><h3>Create a workspace</h3><p>Get a private graph and access link in seconds. Add your people and projects, or let imports fill them in.</p></div>
+    <div class="stepx"><div class="dot">2</div><h3>Connect your tools</h3><p>Slack, Jira, Linear and GitHub — or upload documents, CSV and JSON. Everything links itself.</p></div>
+    <div class="stepx"><div class="dot">3</div><h3>Ask and plan</h3><p>Cited answers, decision history, knowledge risks, PRDs and sprint plans — from day one.</p></div>
   </div>
 </div></section>
 
-<section class="band" id="start" style="padding-bottom:0"><div class="wrap">
+<section id="start" style="padding-top:0"><div class="wrap">
   <div class="final">
     <div>
-      <h2>Give your team a brain that remembers.</h2>
-      <p>Create a free, private workspace in seconds, or explore Lumen Pay — a sample company with 12 people, 6 projects and 27 documents, tickets and messages.</p>
-      <div style="margin-top:22px"><a class="btn white" href="/w/demo">Open the live demo <svg class="i"><use href="#i-arrow"/></svg></a></div>
+      <div class="label" style="color:var(--amber)">Get started</div>
+      <h2>Give your company <em>a memory.</em></h2>
+      <p>Free and private. Or explore Lumen Pay — a sample company with 12 people, 6 projects and 27 documents, tickets and messages.</p>
+      <div style="margin-top:24px"><a class="btn ghost" href="/w/demo">Open the live demo <svg class="i"><use href="#i-arrow"/></svg></a></div>
     </div>
-    <div class="card">
+    <div class="signup">
       <h3>Create a workspace</h3>
-      <p>You'll receive a private access link. Anyone with it can open the workspace.</p>
+      <p>You'll receive a private access link — anyone with it can open the workspace.</p>
       <form id="create" class="row" autocomplete="off">
         <input id="name" placeholder="Company or team name" maxlength="60" required>
-        <button class="btn" id="go">Create</button>
+        <button class="btn ink" id="go">Create</button>
       </form>
       <div class="err" id="err"></div>
       <div class="done" id="done">
-        <div class="okline"><svg class="i"><use href="#i-check"/></svg>Workspace created</div>
+        <div class="okline">Workspace created</div>
         <div class="warn">Save this access link now — it is the only way back in.</div>
         <div class="link" id="link"></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sec sm" id="copy" type="button">Copy link</button><a class="btn sm" id="open">Open workspace</a></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm ink" id="copy" type="button">Copy link</button><a class="btn sm" id="open">Open workspace</a></div>
       </div>
     </div>
   </div>
 </div></section>
 
 <footer><div class="wrap">
-  <a class="brand" href="/"><span class="mark"><svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7h8M7 9l4 6M17 9l-4 6"/></svg></span>Company Brain</a>
-  <span>WeMakeDevs × FalkorDB Hackathon · each workspace is stored in its own FalkorDB graph</span>
+  <a class="brand" href="/" style="color:var(--ink)"><span class="mark"><svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7h8M7 9l4 6M17 9l-4 6"/></svg></span>Company Brain</a>
+  <span>WeMakeDevs × FalkorDB Hackathon</span>
   <span>Photos: <a href="https://unsplash.com" target="_blank" rel="noopener">Unsplash</a></span>
 </div></footer>
 
 <script>
 const $ = id => document.getElementById(id);
+
+// ---------- live knowledge graph in the hero ----------
+const C = { person: '#818cf8', project: '#34d399', system: '#38bdf8', doc: '#c4b5fd', decision: '#fb7185' };
+const N = [
+  ['tomas', 'Tomas', 'person', 120, 70], ['priya', 'Priya', 'person', 60, 170], ['zara', 'Zara', 'person', 300, 290],
+  ['arjun', 'Arjun', 'person', 450, 60], ['maya', 'Maya', 'person', 520, 150], ['kenji', 'Kenji', 'person', 500, 270],
+  ['kafka', 'Kafka', 'system', 200, 150], ['stripe', 'Stripe', 'system', 330, 200], ['postgres', 'Postgres', 'system', 400, 120],
+  ['checkout', 'Checkout', 'project', 420, 230], ['ledger', 'Ledger', 'project', 320, 70], ['eventbus', 'Event Bus', 'project', 110, 250],
+  ['doc3', 'Runbook', 'doc', 60, 60], ['pay52', 'PAY-52', 'doc', 250, 245], ['meet1', 'Review', 'doc', 470, 20], ['msg4', 'Thanks!', 'doc', 230, 40],
+  ['dec1', 'DEC-1', 'decision', 380, 30], ['dec8', 'DEC-8', 'decision', 270, 130]
+];
+const E = [['tomas','doc3'],['doc3','kafka'],['tomas','msg4'],['msg4','kafka'],['priya','eventbus'],['eventbus','kafka'],['kafka','ledger'],
+  ['zara','pay52'],['pay52','stripe'],['pay52','checkout'],['kenji','checkout'],['checkout','stripe'],['arjun','ledger'],['ledger','postgres'],
+  ['maya','meet1'],['meet1','dec1'],['arjun','dec1'],['dec1','postgres'],['dec8','dec1'],['maya','dec8'],['dec8','ledger'],['priya','tomas']];
+const SCENES = [
+  { q: 'Who should I ask about Kafka?', a: 'Tomas Silva — he wrote the consumer runbook and was thanked for fixing lag. Priya owns the Event Bus.',
+    on: ['tomas','doc3','msg4','kafka','priya','eventbus'], src: ['DOC-3', 'MSG-4', 'PLAT-21'] },
+  { q: 'Why is checkout blocked?', a: 'PAY-52 — a Stripe retry storm — blocks the launch. Zara Ahmed is assigned and can unblock it.',
+    on: ['checkout','pay52','stripe','zara','kenji'], src: ['PAY-52', 'GRW-7'] },
+  { q: 'Are we still on Postgres for the ledger?', a: 'No. DEC-8 (Maya) moves the ledger to CockroachDB and replaces DEC-1 from the March review.',
+    on: ['ledger','postgres','dec1','dec8','maya','meet1','arjun'], src: ['DEC-8', 'DEC-1', 'MEET-1'] }
+];
+const svg = $('g'), NS = 'http://www.w3.org/2000/svg', pos = Object.fromEntries(N.map(n => [n[0], n]));
+const el = (t, a) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); return e; };
+const edgeEls = E.map(([a, b]) => { const l = el('line', { x1: pos[a][3], y1: pos[a][4], x2: pos[b][3], y2: pos[b][4], class: 'edge' }); svg.appendChild(l); return [a, b, l]; });
+const nodeEls = N.map(([id, label, type, x, y], i) => {
+  const g = el('g', { class: 'node float', style: `animation-delay:${-i * 0.6}s` });
+  g.appendChild(el('circle', { cx: x, cy: y, r: type === 'doc' || type === 'decision' ? 6 : 9, fill: C[type] }));
+  const t = el('text', { x: x + 13, y: y + 4 }); t.textContent = label; g.appendChild(t);
+  svg.appendChild(g); return [id, g];
+});
+let scene = 0, typing;
+function play() {
+  const s = SCENES[scene % SCENES.length]; scene++;
+  const on = new Set(s.on);
+  nodeEls.forEach(([id, g]) => { g.classList.toggle('on', on.has(id)); g.classList.toggle('dim', !on.has(id)); });
+  edgeEls.forEach(([a, b, l]) => l.classList.toggle('on', on.has(a) && on.has(b)));
+  $('qq').textContent = '> ' + s.q; $('qs').innerHTML = '';
+  clearInterval(typing); let i = 0;
+  typing = setInterval(() => {
+    i += 2; $('qa').innerHTML = s.a.slice(0, i) + '<span class="caret"></span>';
+    if (i >= s.a.length) { clearInterval(typing); $('qa').textContent = s.a; $('qs').innerHTML = s.src.map(k => `<span>${k}</span>`).join(''); }
+  }, 22);
+}
+play(); setInterval(play, 6500);
+
+// ---------- product tour ----------
+const shots = ['/static/hero.png', '/static/shot-sprint.png', '/static/shot-risks.png'];
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  const p = +b.dataset.p;
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.pane').forEach((x, i) => x.classList.toggle('on', i === p));
+  $('tourimg').src = shots[p];
+});
+
+// ---------- sign-up ----------
 $('create').onsubmit = async e => {
   e.preventDefault();
   const name = $('name').value.trim(); if (name.length < 2) return;
