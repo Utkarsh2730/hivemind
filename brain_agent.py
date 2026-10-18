@@ -13,7 +13,7 @@ from graph_db import get_graph
 
 CITE_RE = re.compile(r"\[((?:[A-Z]{2,5})-\d+)\]")
 
-SYSTEM = f"""You are the Company Brain for Lumen Pay. Company knowledge (people, teams, projects, systems,
+SYSTEM = """You are the Company Brain for {company}. Company knowledge (people, teams, projects, systems,
 docs, tickets, chat messages, meeting notes and decisions) lives in a FalkorDB graph.
 
 Rules:
@@ -26,10 +26,10 @@ Rules:
 - Be concise: 3-7 short sentences or bullets. Name people with their role.
 
 Graph schema:
-{T.SCHEMA}"""
+{schema}"""
 
 
-def _claude_answer(question: str):
+def _claude_answer(question: str, company: str):
     import anthropic
     from anthropic import beta_tool
 
@@ -85,7 +85,7 @@ def _claude_answer(question: str):
     runner = client.beta.messages.tool_runner(
         model="claude-opus-5-5",
         max_tokens=16000,
-        system=SYSTEM,
+        system=SYSTEM.format(company=company, schema=T.SCHEMA),
         thinking={"type": "adaptive"},
         output_config={"effort": os.environ.get("BRAIN_EFFORT", "medium")},
         betas=["server-side-fallback-2026-07-01"],
@@ -116,12 +116,17 @@ def _offline_answer(question: str) -> str:
         if "error" not in r and r["experts"]:
             top = r["experts"][0]
             ev = " ".join(f"[{e['key']}]" for e in top["evidence"][:4])
-            others = "; ".join(f"{e['name']} ({e['role']})" for e in r["experts"][1:3])
+            role = ", ".join(x for x in (top.get("role"), top.get("team")) if x)
+            text = (f"Ask **{top['name']}**{f' ({role})' if role else ''}. They have the strongest hands-on "
+                    f"evidence on {r['topic'][0]['name']} {ev}.")
+            others = [f"{e['name']}" + (f" ({e['role']})" if e.get("role") else "") for e in r["experts"][1:3]]
+            if others:
+                text += f"\n\nAlso knowledgeable: {'; '.join(others)}."
             owners = sorted({o["name"] for o in r["formal_owners"]})
-            return (f"Ask **{top['name']}** ({top['role']}, {top['team']}). They have the strongest hands-on "
-                    f"evidence on {r['topic'][0]['name']} {ev}.\n\nAlso knowledgeable: {others}.\n\n"
-                    f"Formal owners of related projects: {', '.join(owners)}. Ownership and know-how are not "
-                    f"the same person here.")
+            if owners and owners != [top["name"]]:
+                text += (f"\n\nFormal owners of related projects: {', '.join(owners)}. "
+                         f"Knowing a system and owning it are not always the same person.")
+            return text
     if re.search(r"\b(block|blocked|blocking|unblock)", q):
         r = json.loads(T.entity_profile(question))
         if "blocked_by" in r and r["blocked_by"]:
@@ -170,10 +175,10 @@ def citations(keys):
     return [by[k] for k in keys if k in by]
 
 
-def answer(question: str, mode: str = "auto") -> dict:
+def answer(question: str, mode: str = "auto", company: str = "this company") -> dict:
     use_claude = has_credentials() if mode == "auto" else mode == "claude"
     with T.Trace() as tr:
-        text = _claude_answer(question) if use_claude else _offline_answer(question)
+        text = _claude_answer(question, company) if use_claude else _offline_answer(question)
     cited = list(dict.fromkeys(CITE_RE.findall(text)))
     return {
         "answer": text,
@@ -192,3 +197,25 @@ if __name__ == "__main__":
         print(" ->", s["tool"], json.dumps(s["args"]), f"({s['found']} nodes)")
     for c in res["citations"]:
         print(f" [{c['key']}] {c['title']} - {c['author'] or ''} {c['date']}")
+
+
+def suggestions(limit: int = 5) -> list[str]:
+    """Starter questions generated from what is actually in the workspace graph."""
+    g = get_graph()
+    q = []
+    top_sys = g.ro_query("MATCH (s:Source)-[:MENTIONS]->(x:System) RETURN x.name, count(s) AS c ORDER BY c DESC LIMIT 1").result_set
+    proj = g.ro_query("MATCH (p:Project) OPTIONAL MATCH (s:Source)-[:MENTIONS]->(p) "
+                      "RETURN p.name, count(s) AS c ORDER BY c DESC LIMIT 2").result_set
+    dec = g.ro_query("MATCH (d:Decision)-[:AFFECTS]->(e) RETURN e.name, count(d) AS c ORDER BY c DESC LIMIT 1").result_set
+    blocked = g.ro_query("MATCH (b:Source)-[:BLOCKS]->(s)-[:MENTIONS]->(p:Project) RETURN p.name LIMIT 1").result_set
+    if dec:
+        q.append(f"Why did we decide what we did about {dec[0][0]}, and who made that call?")
+    if top_sys:
+        q.append(f"Who should I ask about {top_sys[0][0]}?")
+    if blocked:
+        q.append(f"Why is {blocked[0][0]} blocked and who can unblock it?")
+    for name, _ in proj:
+        q.append(f"Who owns {name} and what are they working on?")
+    if not q and g.ro_query("MATCH (s:Source) RETURN count(s)").result_set[0][0]:
+        q.append("What are the most recent decisions?")
+    return q[:limit]

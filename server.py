@@ -1,4 +1,4 @@
-"""Web app for the company brain.
+"""Company Brain web app: a public demo company plus private workspaces any company can register.
 
 Local:  .venv/bin/python server.py   then open http://localhost:8000
 Online: the host sets PORT; the app listens on 0.0.0.0 (see render.yaml).
@@ -9,22 +9,26 @@ import time
 from collections import defaultdict, deque
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import brain_agent
 import brain_ingest
 import company_data as cd
-from graph_db import backend, get_graph
+import workspaces
+from graph_db import backend, get_graph, workspace
 
 app = FastAPI(title="Company Brain")
 HERE = os.path.dirname(os.path.abspath(__file__))
+app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
-# Public demo protection: per-visitor rate limits, size caps, and a write lock.
-LIMITS = {"ask": (8, 60), "ingest": (5, 60), "reset": (2, 60)}  # (requests, seconds)
+# ---------- public-demo protection ----------
+LIMITS = {"ask": (8, 60), "write": (20, 60), "import": (4, 60), "reset": (2, 60), "create": (3, 600)}
+MAX_SOURCES, MAX_ENTITIES = 2000, 1500
 _hits = defaultdict(deque)
-_write_lock = threading.Lock()
+_locks = defaultdict(threading.Lock)
 
 
 def _client_ip(request: Request) -> str:
@@ -39,32 +43,71 @@ def _rate_limit(request: Request, bucket: str):
     while q and now - q[0] > window:
         q.popleft()
     if len(q) >= n:
-        raise HTTPException(429, f"Too many requests. Please wait a minute and try again.")
+        raise HTTPException(429, "Too many requests. Please wait a minute and try again.")
     q.append(now)
+
+
+def ws(slug: str, x_workspace_key: str = Header(default="")) -> dict:
+    """Resolve the workspace and check its access key (the demo is open)."""
+    w = workspaces.get(slug)
+    if not w:
+        raise HTTPException(404, "Workspace not found.")
+    if not workspaces.check_key(slug, x_workspace_key):
+        raise HTTPException(401, "This workspace is private. Open it with its access link.")
+    return w
+
+
+# ---------- models ----------
+class NewWorkspace(BaseModel):
+    name: str = Field(min_length=2, max_length=60)
 
 
 class Ask(BaseModel):
     question: str = Field(max_length=400)
 
 
-class Ingest(BaseModel):
-    author: str = Field(max_length=40)
-    text: str = Field(max_length=600)
-    channel: str = Field(default="#general", max_length=30)
+class Message(BaseModel):
+    author: str = Field(default="", max_length=60)
+    text: str = Field(min_length=1, max_length=4000)
+    channel: str = Field(default="", max_length=40)
+    kind: str = Field(default="message", max_length=10)
+    title: str = Field(default="", max_length=200)
+    date: str = Field(default="", max_length=10)
+    status: str = Field(default="", max_length=20)
+    assignee: str = Field(default="", max_length=60)
+    key: str = Field(default="", max_length=20)
 
 
+class Entities(BaseModel):
+    people: list[dict] = Field(default_factory=list, max_length=300)
+    teams: list[str] = Field(default_factory=list, max_length=100)
+    projects: list[dict] = Field(default_factory=list, max_length=200)
+    systems: list[dict] = Field(default_factory=list, max_length=300)
+
+
+class Bulk(BaseModel):
+    sources: list[Message] = Field(max_length=200)
+
+
+# ---------- pages ----------
 @app.on_event("startup")
-def ensure_graph():
+def ensure_demo():
     try:
-        empty = not get_graph().ro_query("MATCH (n) RETURN count(n)").result_set[0][0]
+        with workspace("demo"):
+            empty = not get_graph().ro_query("MATCH (n) RETURN count(n)").result_set[0][0]
     except Exception:
         empty = True
     if empty:
-        brain_ingest.build()
+        brain_ingest.build_demo()
 
 
 @app.get("/")
-def index():
+def landing():
+    return FileResponse(os.path.join(HERE, "static", "landing.html"))
+
+
+@app.get("/w/{slug}")
+def app_page(slug: str):
     return FileResponse(os.path.join(HERE, "static", "index.html"))
 
 
@@ -73,65 +116,118 @@ def health():
     return {"ok": True}
 
 
-@app.get("/api/meta")
-def meta():
-    people = get_graph().ro_query("MATCH (p:Person) RETURN p.key, p.name, p.role ORDER BY p.name").result_set
+# ---------- workspace API ----------
+@app.post("/api/workspaces")
+def create_workspace(body: NewWorkspace, request: Request):
+    _rate_limit(request, "create")
+    try:
+        return workspaces.create(body.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@app.get("/api/w/{slug}/meta")
+def meta(w: dict = Depends(ws)):
+    with workspace(w["slug"]):
+        g = get_graph()
+        people = g.ro_query("MATCH (p:Person) RETURN p.key, p.name, p.role ORDER BY p.name").result_set
+        counts = brain_ingest.counts()
+        questions = cd.DEMO_QUESTIONS if w["demo"] else brain_agent.suggestions()
     return {
+        "workspace": w,
         "claude": brain_agent.has_credentials(),
         "backend": backend(),
-        "questions": cd.DEMO_QUESTIONS,
-        "demo_ingest": cd.DEMO_INGEST,
-        "people": [{"key": k, "name": n, "role": r} for k, n, r in people],
+        "questions": questions,
+        "demo_ingest": cd.DEMO_INGEST if w["demo"] else None,
+        "people": [{"key": k, "name": n, "role": r or ""} for k, n, r in people],
+        "counts": counts,
     }
 
 
-@app.get("/api/graph")
-def graph():
-    g = get_graph()
-    nodes = g.ro_query(
-        "MATCH (n) RETURN n.key, labels(n)[0], coalesce(n.name, n.title), n.kind, n.status, "
-        "coalesce(n.role, n.summary, n.text, ''), n.date").result_set
-    edges = g.ro_query("MATCH (a)-[r]->(b) RETURN a.key, type(r), b.key").result_set
+@app.get("/api/w/{slug}/graph")
+def graph(w: dict = Depends(ws)):
+    with workspace(w["slug"]):
+        g = get_graph()
+        nodes = g.ro_query(
+            "MATCH (n) RETURN n.key, labels(n)[0], coalesce(n.name, n.title), n.kind, n.status, "
+            "coalesce(n.role, n.summary, n.text, ''), n.date").result_set
+        edges = g.ro_query("MATCH (a)-[r]->(b) RETURN a.key, type(r), b.key").result_set
     return {
-        "nodes": [dict(id=k, type=t, name=n, kind=kind, status=st, detail=d, date=dt)
+        "nodes": [dict(id=k, type=t, name=n, kind=kind, status=st, detail=(d or "")[:400], date=dt)
                   for k, t, n, kind, st, d, dt in nodes],
         "edges": [dict(source=a, rel=r, target=b) for a, r, b in edges],
     }
 
 
-@app.post("/api/ask")
-def ask(body: Ask, request: Request):
+@app.post("/api/w/{slug}/ask")
+def ask(body: Ask, request: Request, w: dict = Depends(ws)):
     _rate_limit(request, "ask")
-    try:
-        return brain_agent.answer(body.question)
-    except Exception as e:  # e.g. API credits exhausted: fall back to answering from the graph directly
+    company = w["name"].replace(" (demo)", "")
+    with workspace(w["slug"]):
         try:
-            res = brain_agent.answer(body.question, mode="graph")
-            res["answer"] += "\n\n(The AI model was unavailable, so this answer came straight from the company map.)"
-            return res
-        except Exception:
-            return {"answer": f"Something went wrong: {e}", "mode": "error", "citations": [], "trace": [],
-                    "highlight": [], "cited": []}
+            return brain_agent.answer(body.question, company=company)
+        except Exception as e:  # e.g. API credits exhausted: answer straight from the graph instead
+            try:
+                res = brain_agent.answer(body.question, mode="graph")
+                res["answer"] += "\n\n(The AI model was unavailable, so this answer came straight from the company map.)"
+                return res
+            except Exception:
+                return {"answer": f"Something went wrong: {e}", "mode": "error", "citations": [], "trace": [],
+                        "highlight": [], "cited": []}
 
 
-@app.post("/api/ingest")
-def ingest(body: Ingest, request: Request):
-    _rate_limit(request, "ingest")
-    valid = {p[0] for p in cd.PEOPLE}
-    if body.author not in valid:
-        raise HTTPException(400, "Unknown author")
-    with _write_lock:
-        live = get_graph().ro_query("MATCH (s:Source) WHERE s.key STARTS WITH 'LIVE-' RETURN count(s)").result_set[0][0]
-        if live >= 50:  # keep the shared public demo tidy
-            brain_ingest.build()
-        return brain_ingest.ingest("message", body.author, body.text, body.channel)
+def _check_capacity(add_sources=0):
+    c = brain_ingest.counts()
+    if c.get("Source", 0) + add_sources > MAX_SOURCES:
+        raise HTTPException(400, f"This workspace is full ({MAX_SOURCES} items max in the hosted demo).")
+    if sum(v for k, v in c.items() if k in ("Person", "Team", "Project", "System")) > MAX_ENTITIES:
+        raise HTTPException(400, "Too many people/projects/systems for the hosted demo.")
 
 
-@app.post("/api/reset")
-def reset(request: Request):
+@app.post("/api/w/{slug}/knowledge")
+def add_one(body: Message, request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "write")
+    with workspace(w["slug"]), _locks[w["slug"]]:
+        if w["demo"]:  # keep the shared demo tidy
+            live = get_graph().ro_query("MATCH (s:Source) WHERE NOT s.key IN $k RETURN count(s)",
+                                        {"k": [s["key"] for s in cd.SOURCES]}).result_set[0][0]
+            if live >= 50:
+                brain_ingest.build_demo()
+        _check_capacity(1)
+        return brain_ingest.add_knowledge(body.kind, body.text, author=body.author, title=body.title,
+                                          date_=body.date, channel=body.channel, status=body.status,
+                                          assignee=body.assignee, key=body.key)
+
+
+@app.post("/api/w/{slug}/import")
+def import_sources(body: Bulk, request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "import")
+    if w["demo"]:
+        raise HTTPException(403, "Create your own workspace to import files.")
+    with workspace(w["slug"]), _locks[w["slug"]]:
+        _check_capacity(len(body.sources))
+        return brain_ingest.bulk_import([s.model_dump() for s in body.sources])
+
+
+@app.post("/api/w/{slug}/entities")
+def add_entities(body: Entities, request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "write")
+    if w["demo"]:
+        raise HTTPException(403, "Create your own workspace to add your team.")
+    with workspace(w["slug"]), _locks[w["slug"]]:
+        _check_capacity()
+        return brain_ingest.add_entities(body.people, body.teams, body.projects, body.systems)
+
+
+@app.post("/api/w/{slug}/reset")
+def reset(request: Request, w: dict = Depends(ws)):
     _rate_limit(request, "reset")
-    with _write_lock:
-        brain_ingest.build()
+    with _locks[w["slug"]]:
+        if w["demo"]:
+            brain_ingest.build_demo()
+        else:
+            with workspace(w["slug"]):
+                brain_ingest.init_graph(wipe=True)
     return {"ok": True}
 
 

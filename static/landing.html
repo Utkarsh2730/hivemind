@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Company Brain</title>
+<meta name="description" content="Turn your company's docs, tickets and chats into one connected brain. Ask who owns what, who knows what, and why decisions were made, with sources.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b12;--panel:#12121c;--panel2:#181826;--line:#26263a;--ink:#ececf4;--muted:#9a9ab0;--dim:#5f5f78;--accent:#7c6cff;--accent2:#a99dff;--ok:#22c55e}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:15px}
+body{background:radial-gradient(ellipse 80% 50% at 70% -10%,#2a2160 0%,transparent 60%),var(--bg);min-height:100vh}
+.wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+nav{display:flex;align-items:center;gap:10px;height:64px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.dot{width:26px;height:26px;border-radius:7px;background:conic-gradient(from 200deg,var(--accent),#38bdf8,var(--ok),var(--accent));box-shadow:0 0 18px #7c6cff66}
+nav .r{margin-left:auto;color:var(--muted);font-size:13px}
+.label{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent2)}
+h1{font-size:clamp(34px,6vw,58px);line-height:1.05;letter-spacing:-.03em;margin:56px 0 18px;max-width:780px}
+h1 em{font-style:normal;background:linear-gradient(90deg,var(--accent2),#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lead{font-size:18px;line-height:1.6;color:var(--muted);max-width:640px;margin:0 0 36px}
+.cta{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:64px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px}
+.card h2{margin:6px 0 8px;font-size:20px}
+.card p{color:var(--muted);line-height:1.55;margin:0 0 18px;font-size:14px}
+.btn{display:inline-block;background:var(--accent);color:#fff;border:0;border-radius:10px;padding:11px 18px;font:inherit;font-weight:600;cursor:pointer;text-decoration:none}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--ink)}
+.btn:disabled{opacity:.6;cursor:wait}
+.row{display:flex;gap:8px}
+input{flex:1;min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:11px 12px;font:inherit}
+input:focus{outline:none;border-color:var(--accent)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:18px 0 70px}
+.step{border-top:1px solid var(--line);padding-top:16px}
+.step .n{font-family:"JetBrains Mono",monospace;color:var(--accent2);font-size:13px}
+.step h3{margin:8px 0 6px;font-size:16px}
+.step p{margin:0;color:var(--muted);line-height:1.55;font-size:14px}
+.qs{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:18px 0 70px}
+.q{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--muted);font-size:14px;line-height:1.5}
+.q b{color:var(--ink);display:block;margin-bottom:4px;font-weight:600}
+.done{display:none;margin-top:14px;background:#22c55e10;border:1px solid #22c55e55;border-radius:12px;padding:14px}
+.done.show{display:block}
+.link{font-family:"JetBrains Mono",monospace;font-size:12px;word-break:break-all;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;margin:8px 0;color:var(--ink)}
+.warn{color:#fcd34d;font-size:13px;line-height:1.5}
+.err{color:#fca5a5;font-size:13px;margin-top:8px;min-height:1em}
+footer{border-top:1px solid var(--line);padding:24px 0 40px;color:var(--dim);font-size:13px}
+@media (max-width:760px){.cta,.steps,.qs{grid-template-columns:1fr}h1{margin-top:32px}.wrap{padding:0 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav><div class="logo"><div class="dot"></div>Company Brain</div><span class="r">Built on FalkorDB</span></nav>
+
+  <h1>Your company's knowledge, <em>connected</em>.</h1>
+  <p class="lead">Company Brain turns your docs, tickets, meeting notes and chats into one connected map. Ask who owns what, who actually knows what, and why a decision was made. Every answer shows its sources.</p>
+
+  <div class="cta">
+    <div class="card">
+      <span class="label">Get started</span>
+      <h2>Create your company brain</h2>
+      <p>Free, private workspace for your team. Add your people and projects, then paste or upload your knowledge.</p>
+      <form id="create" class="row" autocomplete="off">
+        <input id="name" placeholder="Company or team name" maxlength="60" required>
+        <button class="btn" id="go">Create</button>
+      </form>
+      <div class="err" id="err"></div>
+      <div class="done" id="done">
+        <b>Your workspace is ready.</b>
+        <div class="warn">Save this private link now. It's the only way back in, and anyone who has it can open your workspace.</div>
+        <div class="link" id="link"></div>
+        <div class="row"><button class="btn ghost" id="copy" type="button">Copy link</button><a class="btn" id="open">Open my workspace &rarr;</a></div>
+      </div>
+    </div>
+    <div class="card">
+      <span class="label">See it first</span>
+      <h2>Try the live demo</h2>
+      <p>Explore <b>Lumen Pay</b>, a sample fintech with 12 people, 6 projects, and real-looking docs, tickets, chats and decisions.</p>
+      <a class="btn ghost" href="/w/demo">Open the demo &rarr;</a>
+    </div>
+  </div>
+
+  <span class="label">How it works</span>
+  <div class="steps">
+    <div class="step"><div class="n">01</div><h3>Everything is connected</h3><p>People, teams, projects, tools, docs, tickets and chats become one map. Lines show who wrote what, who owns what, and which meeting a decision came from.</p></div>
+    <div class="step"><div class="n">02</div><h3>Ask in plain words</h3><p>The brain follows the connections to the answer, like asking around the office, only instantly.</p></div>
+    <div class="step"><div class="n">03</div><h3>See the proof, stay current</h3><p>Every answer links to the original source. When a new message changes a decision, the old one is marked outdated automatically.</p></div>
+  </div>
+
+  <span class="label">Questions it answers</span>
+  <div class="qs">
+    <div class="q"><b>"Why did we choose Postgres?"</b>The decision, who made it, and the meeting and doc it came from.</div>
+    <div class="q"><b>"Who should I ask about Kafka?"</b>The person who actually works with it, not just whoever owns it on paper.</div>
+    <div class="q"><b>"Why is checkout blocked?"</b>The blocking ticket, its status, and who can unblock it.</div>
+    <div class="q"><b>"What changed about login?"</b>The full decision history, with the outdated choices marked.</div>
+  </div>
+
+  <footer>Company Brain &middot; WeMakeDevs &times; FalkorDB hackathon &middot; each company's data is kept in its own graph</footer>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+$('create').onsubmit = async e => {
+  e.preventDefault();
+  const name = $('name').value.trim(); if (name.length < 2) return;
+  $('go').disabled = true; $('err').textContent = '';
+  try {
+    const r = await fetch('/api/workspaces', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+    const d = await r.json();
+    if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : 'Could not create the workspace.');
+    try { localStorage.setItem('cb_key_' + d.slug, d.key); } catch (e) {}
+    const link = `${location.origin}/w/${d.slug}#key=${d.key}`;
+    $('link').textContent = link; $('open').href = link;
+    $('done').classList.add('show'); $('create').style.display = 'none';
+  } catch (err) { $('err').textContent = err.message; }
+  $('go').disabled = false;
+};
+$('copy').onclick = async () => {
+  try { await navigator.clipboard.writeText($('link').textContent); $('copy').textContent = 'Copied'; }
+  catch (e) { prompt('Copy your private link:', $('link').textContent); }
+};
+</script>
+</body>
+</html>

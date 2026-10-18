@@ -58,7 +58,7 @@ main{display:grid;grid-template-columns:minmax(380px,460px) 1fr;height:calc(100%
 .sup{color:var(--bad);font-size:10.5px;border:1px solid #ef444466;border-radius:4px;padding:0 5px}
 .live{border-top:1px solid var(--line);padding:12px 18px 14px;background:var(--panel)}
 .live .row{display:flex;gap:8px;margin-top:6px}
-.live select,.live input{background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px}
+.live select,.live input{min-width:0;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:7px 9px;font:inherit;font-size:12.5px}
 .live textarea{width:100%;height:52px;resize:none;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit;font-size:12.5px}
 .live .btn{padding:7px 14px;font-size:12.5px}
 #right{position:relative;min-width:0}
@@ -77,23 +77,63 @@ main{display:grid;grid-template-columns:minmax(380px,460px) 1fr;height:calc(100%
 .how .step span{flex:none;width:24px;height:24px;border-radius:50%;background:#7c6cff22;border:1px solid #7c6cff66;color:var(--accent2);display:grid;place-items:center;font-size:12px;font-weight:600}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s 0.8s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes s{to{transform:rotate(360deg)}}
+a.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);padding:6px 10px;border-radius:8px;font-size:12px;text-decoration:none}
+a.ghost:hover{color:var(--ink);border-color:var(--dim)}
+.hbtns{display:flex;gap:6px;align-items:center}
+.wsname{font-weight:600;font-size:14px;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px}
+.overlay{position:fixed;inset:0;background:#0009;backdrop-filter:blur(3px);display:none;z-index:20}
+.overlay.open{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(620px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:21;transform:translateX(105%);transition:transform .25s;display:flex;flex-direction:column}
+.drawer.open{transform:none}
+.drawer .dh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.drawer .dh h3{margin:0;font-size:15px}
+.tabs{display:flex;border-bottom:1px solid var(--line);padding:0 12px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:10px 10px;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.tabs button.on{color:var(--ink);border-color:var(--accent)}
+.dbody{overflow:auto;padding:16px 18px;flex:1}
+.pane{display:none}.pane.on{display:block}
+.field{margin-bottom:12px;min-width:0}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:5px}
+.field label b{color:var(--ink);font-weight:600}
+.field textarea,.field input,.field select{width:100%;background:var(--bg);border:1px solid var(--line);color:var(--ink);border-radius:8px;padding:8px 10px;font:inherit;font-size:12.5px}
+.field textarea{resize:vertical;min-height:70px;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.5}
+.field textarea.prose{font-family:Inter,sans-serif;font-size:13px;min-height:110px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.note{font-size:12px;color:var(--muted);line-height:1.55;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.note b{color:var(--ink)}
+.result{font-size:12.5px;margin-top:10px;color:var(--muted);line-height:1.5}
+.result.ok{color:#86efac}.result.err{color:#fca5a5}
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted);cursor:pointer}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
+.gate{position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:30}
+.gate.open{display:grid}
+.gate .card{width:min(440px,92vw)}
+.onboard .step{display:flex;gap:12px;margin-bottom:14px;line-height:1.5;color:var(--muted)}
+.onboard .step b{color:var(--ink)}
+.onboard .step span{flex:none;width:24px;height:24px;border-radius:50%;background:#7c6cff22;border:1px solid #7c6cff66;color:var(--accent2);display:grid;place-items:center;font-size:12px;font-weight:600}
+.onboard .step.done span{background:#22c55e22;border-color:#22c55e88;color:#86efac}
+@media (max-width:640px){.grid3{grid-template-columns:1fr}.wsname{max-width:120px}#mode{display:none}}
 @media (max-width:1000px){header .sub{display:none}main{display:block;height:auto}#left{border-right:0;border-bottom:1px solid var(--line)}#scroll{overflow:visible}#right{height:75vh}.inspect{width:auto;left:14px}}
 @media (max-width:520px){header{padding:10px 16px}#scroll,.live{padding-left:16px;padding-right:16px}.legend{display:none}}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo"><div class="dot"></div>Company Brain</div>
-  <div class="sub">Lumen Pay &middot; people, projects, docs, tickets, chats &amp; decisions in one FalkorDB graph</div>
+  <a href="/" class="logo" style="color:inherit;text-decoration:none"><div class="dot"></div><span class="lt">Company Brain</span></a>
+  <div class="wsname" id="wsname">&hellip;</div>
   <span id="mode" class="badge">&hellip;</span>
-  <button class="ghost" id="reset" title="Rebuild the graph from source data">Reset data</button>
+  <div class="hbtns">
+    <button class="btn" id="manage" style="padding:7px 12px;font-size:12.5px">Manage data</button>
+    <button class="ghost" id="share">Share</button>
+    <button class="ghost" id="reset" title="Demo: restore sample data. Your workspace: delete all data.">Reset</button>
+  </div>
 </header>
 <main>
   <section id="left">
     <div id="scroll">
       <p class="label">Ask the company</p>
       <div class="ask">
-        <textarea id="q" maxlength="400" placeholder="Why did we choose Postgres for the ledger?"></textarea>
+        <textarea id="q" maxlength="400" placeholder="Ask anything about your company, e.g. who knows our billing system?"></textarea>
         <button class="btn" id="go">Ask</button>
       </div>
       <div class="chips" id="chips"></div>
@@ -109,8 +149,8 @@ main{display:grid;grid-template-columns:minmax(380px,460px) 1fr;height:calc(100%
     </div>
     <div class="live">
       <p class="label" style="margin:0">Post a new message &middot; the brain learns it instantly</p>
-      <div class="row"><select id="author"></select><input id="channel" value="#arch" style="width:90px"></div>
-      <div class="row"><textarea id="ltext" maxlength="600"></textarea></div>
+      <div class="row"><input id="author" list="people" placeholder="Your name" style="flex:1"><input id="channel" placeholder="#channel" style="width:110px"></div><datalist id="people"></datalist>
+      <div class="row"><textarea id="ltext" maxlength="4000" placeholder="e.g. We decided to move billing to Stripe. Priya will lead it."></textarea></div>
       <div class="row" style="justify-content:space-between;align-items:center">
         <span class="sub" id="lres">It connects the message to the right people and projects. If it changes an old decision, the old one is marked outdated.</span>
         <button class="btn" id="ingest">Post</button>
@@ -132,13 +172,87 @@ main{display:grid;grid-template-columns:minmax(380px,460px) 1fr;height:calc(100%
     <div class="toast" id="toast"></div>
   </section>
 </main>
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer">
+  <div class="dh"><h3>Manage your company data</h3><button class="ghost" id="dclose" style="margin-left:auto">Close</button></div>
+  <div class="tabs">
+    <button data-tab="team" class="on">1 &middot; People &amp; projects</button>
+    <button data-tab="add">2 &middot; Add knowledge</button>
+    <button data-tab="files">3 &middot; Import files</button>
+  </div>
+  <div class="dbody">
+    <div class="pane on" id="tab-team">
+      <div class="note">Tell the brain who works here and what you build. Put one item per line and separate fields with <span class="mono">|</span>. You can add more later; existing items are updated, not duplicated.</div>
+      <div class="field"><label><b>People</b> &mdash; Name | Role | Team</label>
+        <textarea id="e-people" placeholder="Priya Sharma | Engineering Manager | Platform&#10;Arjun Mehta | Backend Engineer | Payments"></textarea></div>
+      <div class="field"><label><b>Projects</b> &mdash; Name | Owning team | Lead | Tools it uses (comma separated)</label>
+        <textarea id="e-projects" placeholder="Checkout v2 | Payments | Arjun Mehta | Stripe, Postgres&#10;Mobile App | Growth | Neha Rao | React Native"></textarea></div>
+      <div class="field"><label><b>Systems &amp; tools</b> &mdash; Name | Other names (comma separated)</label>
+        <textarea id="e-systems" placeholder="Postgres | postgresql, pg&#10;Kubernetes | k8s"></textarea></div>
+      <button class="btn" id="e-save" style="padding:9px 16px">Save people &amp; projects</button>
+      <div class="result" id="e-res"></div>
+    </div>
+    <div class="pane" id="tab-add">
+      <div class="note">Paste anything your company knows: a doc, meeting notes, a ticket or a chat message. The brain links it to the right people, projects and tools. If it records a decision that replaces an older one, the older one is marked outdated.</div>
+      <div class="grid3">
+        <div class="field"><label>Type</label><select id="k-kind"><option value="doc">Doc</option><option value="meeting">Meeting notes</option><option value="ticket">Ticket</option><option value="message">Chat message</option></select></div>
+        <div class="field"><label>Written by</label><input id="k-author" list="people" placeholder="Name"></div>
+        <div class="field"><label>Date</label><input id="k-date" type="date"></div>
+      </div>
+      <div class="field"><label>Title (optional)</label><input id="k-title" maxlength="200" placeholder="e.g. Q3 architecture review"></div>
+      <div class="grid3" id="k-ticket" style="display:none">
+        <div class="field"><label>Ticket ID (optional)</label><input id="k-key" maxlength="20" placeholder="PAY-12"></div>
+        <div class="field"><label>Status</label><select id="k-status"><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></div>
+        <div class="field"><label>Assignee</label><input id="k-assignee" list="people" placeholder="Name"></div>
+      </div>
+      <div class="field" id="k-chan" style="display:none"><label>Channel</label><input id="k-channel" maxlength="40" placeholder="#engineering"></div>
+      <div class="field"><label>Text</label><textarea id="k-text" class="prose" maxlength="4000" placeholder="Paste the content here..."></textarea></div>
+      <button class="btn" id="k-save" style="padding:9px 16px">Add to the brain</button>
+      <div class="result" id="k-res"></div>
+    </div>
+    <div class="pane" id="tab-files">
+      <div class="note">Upload many items at once:<br>
+        &bull; <b>.txt / .md</b>: each file becomes a doc, titled with the file name<br>
+        &bull; <b>.csv</b>: one row per item, with columns <span class="mono">kind,title,text,author,date,channel,status,assignee</span><br>
+        &bull; <b>.json</b>: a list of items with those fields, or <span class="mono">{"people":[], "projects":[], "systems":[], "sources":[]}</span><br>
+        Older items are processed first, so newer decisions replace older ones.</div>
+      <div class="drop" id="drop">Drop files here or <u>choose files</u><input type="file" id="files" multiple accept=".txt,.md,.csv,.json" style="display:none"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="ghost" id="tpl-csv">Download CSV template</button><button class="ghost" id="tpl-json">Download JSON template</button></div>
+      <div class="result" id="f-res"></div>
+    </div>
+  </div>
+</aside>
+<div class="gate" id="gate"><div class="card">
+  <p class="label">Private workspace</p>
+  <p style="margin:0 0 12px;line-height:1.5">This company brain is private. Paste the access link (or just the access key) you got when the workspace was created.</p>
+  <div class="field"><input id="gate-key" placeholder="Access link or key"></div>
+  <div style="display:flex;gap:8px"><button class="btn" id="gate-go" style="padding:9px 16px">Open</button><a class="ghost" href="/" style="padding:9px 12px">Back to home</a></div>
+  <div class="result err" id="gate-res"></div>
+</div></div>
+
 <script>
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const COLORS = {Person:css('--person'),Team:css('--team'),Project:css('--project'),System:css('--system'),
   doc:css('--doc'),ticket:css('--ticket'),message:css('--message'),meeting:css('--meeting'),Decision:css('--decision'),Insight:'#a3e635'};
 const SHAPES = {Person:'dot',Team:'hexagon',Project:'diamond',System:'square',Source:'dot',Decision:'star'};
 const SIZES = {Person:16,Team:20,Project:18,System:14,Source:8,Decision:15};
-let nodes, edges, network, raw = {nodes:[],edges:[]}, highlightSet = null, citedSet = new Set();
+let nodes, edges, network, raw = {nodes:[],edges:[]}, highlightSet = null, citedSet = new Set(), META = null;
+const SLUG = (location.pathname.match(/^\/w\/([a-z0-9-]+)/) || [null, 'demo'])[1];
+const KEY_STORE = 'cb_key_' + SLUG;
+let memKey = '';
+function storeKey(k){ memKey = k; try{ localStorage.setItem(KEY_STORE, k); }catch(e){} }
+function getKey(){ try{ return localStorage.getItem(KEY_STORE) || memKey; }catch(e){ return memKey; } }
+(function(){ const m = location.hash.match(/key=([A-Za-z0-9_-]+)/); if (m){ storeKey(m[1]); history.replaceState(null, '', location.pathname); } })();
+async function api(path, body){
+  const opts = {headers:{'X-Workspace-Key': getKey()}};
+  if (body !== undefined){ opts.method = 'POST'; opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const resp = await fetch(`/api/w/${SLUG}${path}`, opts);
+  let data = {}; try { data = await resp.json(); } catch(e){}
+  if (resp.status === 401){ openGate(); throw new Error('locked'); }
+  if (resp.status === 404){ throw new Error('This workspace does not exist. Check the link.'); }
+  if (!resp.ok){ const d = data.detail; throw new Error(typeof d === 'string' ? d : (Array.isArray(d) ? 'Some fields are too long or missing.' : 'Request failed.')); }
+  return data;
+}
 const $ = id => document.getElementById(id);
 const esc = s => (s ?? '').toString().replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -166,7 +280,7 @@ function edgeView(e, i){
     font:{color:'#a99dff', size:9, strokeWidth:0, face:'JetBrains Mono', background:'#0b0b12'}, smooth:{type:'continuous'}};
 }
 async function loadGraph(newKeys){
-  raw = await (await fetch('/api/graph')).json();
+  raw = await api('/graph');
   $('stats').textContent = `Company map: ${raw.nodes.length} items, ${raw.edges.length} connections · click any dot`;
   if (!network){
     nodes = new vis.DataSet(raw.nodes.map(nodeView));
@@ -220,11 +334,11 @@ async function ask(q){
   $('q').value=q; $('go').disabled=true;
   $('out').innerHTML = `<div class="card"><span class="spin"></span>Walking the graph&hellip;</div>`;
   const t0 = performance.now();
-  const resp = await fetch('/api/ask',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q.slice(0,400)})});
-  const r = await resp.json();
+  let r;
+  try { r = await api('/ask', {question:q.slice(0,400)}); }
+  catch(e){ $('go').disabled=false; $('out').innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
   const secs = ((performance.now()-t0)/1000).toFixed(1);
   $('go').disabled=false;
-  if (!resp.ok){ $('out').innerHTML = `<div class="card">${esc(typeof r.detail==='string'?r.detail:'Please keep questions under 400 characters.')}</div>`; return; }
   citedSet = new Set(r.cited);
   const trace = r.trace.map(s => `<li><b>${TOOL_TEXT[s.tool]||s.tool}</b> <span class="mono">${esc(Object.values(s.args)[0]).slice(0,90)}</span> &rarr; found ${s.found} connected items</li>`).join('');
   $('out').innerHTML = `
@@ -240,40 +354,65 @@ document.addEventListener('click', e => {
   if (nodes.get(k)){ network.selectNodes([k]); network.focus(k,{scale:1.3,animation:{duration:500}}); inspect(k); }
 });
 function toast(html){ $('toast').innerHTML=html; $('toast').classList.add('show'); setTimeout(()=>$('toast').classList.remove('show'),5000); }
+function renderOnboarding(c){
+  const people = c.Person || 0, sources = c.Source || 0;
+  $('out').innerHTML = `<div class="card onboard">
+    <p class="label" style="margin-bottom:12px">Set up ${esc(META.workspace.name)} in 3 steps</p>
+    <div class="step ${people?'done':''}"><span>${people?'&#10003;':'1'}</span><div><b>Add your people &amp; projects.</b> Who works here, which team owns which project, and the tools they use. ${people?`(${people} people added)`:''}</div></div>
+    <div class="step ${sources?'done':''}"><span>${sources?'&#10003;':'2'}</span><div><b>Add your knowledge.</b> Paste docs, meeting notes, tickets and chat messages, or upload files. ${sources?`(${sources} items added)`:''}</div></div>
+    <div class="step"><span>3</span><div><b>Ask anything.</b> Who owns what, who knows what, and why a decision was made. Every answer links to its source.</div></div>
+    <button class="btn" style="padding:9px 16px" onclick="openDrawer('${people?'add':'team'}')">${people?'Add knowledge':'Start: add people &amp; projects'}</button>
+    <div class="sub" style="margin-top:12px">Tip: save your private link (Share button). It is the only way back into this workspace.</div>
+  </div>`;
+}
 async function init(){
-  const m = await (await fetch('/api/meta')).json();
+  try { META = await api('/meta'); } catch(e){ if (e.message !== 'locked') $('out').innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
+  const m = META;
+  document.title = m.workspace.name + ' · Company Brain';
+  $('wsname').textContent = m.workspace.name;
   $('mode').textContent = (m.claude ? 'AI answers on' : 'Map-only answers') + ' · ' + m.backend;
   $('mode').title = m.claude ? 'Claude plans each answer using the company map' : 'Answers come straight from the company map (no AI key configured)';
   $('mode').className = 'badge ' + (m.claude?'on':'off');
+  $('share').style.display = m.workspace.demo ? 'none' : '';
   $('chips').innerHTML = m.questions.map(q => `<button class="chip">${esc(q)}</button>`).join('');
   $('chips').querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
-  $('author').innerHTML = m.people.map(p => `<option value="${p.key}">${esc(p.name)} · ${esc(p.role)}</option>`).join('');
-  $('author').value = m.demo_ingest.author; $('ltext').value = m.demo_ingest.text; $('channel').value = m.demo_ingest.channel;
+  $('people').innerHTML = m.people.map(p => `<option value="${esc(p.name)}">${esc(p.role)}</option>`).join('');
+  if (m.demo_ingest && !$('ltext').value){
+    const a = m.people.find(p => p.key === m.demo_ingest.author);
+    $('author').value = a ? a.name : ''; $('ltext').value = m.demo_ingest.text; $('channel').value = m.demo_ingest.channel;
+  }
+  if (!m.workspace.demo && !(m.counts.Source > 0)) renderOnboarding(m.counts);
+  else if ($('out').querySelector('.onboard')) $('out').innerHTML = '<div class="card empty">Your brain is ready. Ask a question above.</div>';
+  if (network){ network.destroy(); network = null; }
   await loadGraph();
 }
+const refresh = init;
 $('go').onclick = () => ask($('q').value);
 $('q').addEventListener('keydown', e => { if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); ask($('q').value);} });
+function showChange(r){
+  let msg = `Learned <b>${r.source}</b> and connected it to ${r.mentions.length} people/projects/tools.`;
+  if (r.decision) msg += ` New decision <b>${r.decision.key}</b>: ${esc(r.decision.title)}.`;
+  if (r.superseded.length) msg += ` <span style="color:var(--bad)">Marked ${r.superseded.join(', ')} as outdated</span>.`;
+  return msg;
+}
 $('ingest').onclick = async () => {
+  if (!$('ltext').value.trim()) return;
   $('ingest').disabled = true;
-  const resp = await fetch('/api/ingest',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({author:$('author').value,text:$('ltext').value.slice(0,600),channel:$('channel').value.slice(0,30)})});
-  const r = await resp.json();
+  let r;
+  try { r = await api('/knowledge', {kind:'message', author:$('author').value.slice(0,60), text:$('ltext').value.slice(0,4000), channel:$('channel').value.slice(0,40)}); }
+  catch(e){ $('ingest').disabled = false; $('lres').textContent = e.message; return; }
   $('ingest').disabled = false;
-  if (!resp.ok){ $('lres').textContent = typeof r.detail==='string' ? r.detail : 'Please keep messages under 600 characters.'; return; }
-  await loadGraph();
+  if (!META.workspace.demo) $('ltext').value = '';
+  await refresh();
   const keys = [r.source, ...r.mentions, ...(r.decision?[r.decision.key]:[]), ...r.superseded];
   citedSet = new Set([r.source, ...(r.decision?[r.decision.key]:[])]);
   focusOn(keys);
-  let msg = `Learned <b>${r.source}</b> and connected it to ${r.mentions.length} people/projects.`;
-  if (r.decision) msg += ` New decision <b>${r.decision.key}</b>: ${esc(r.decision.title)}.`;
-  if (r.superseded.length) msg += ` <span style="color:var(--bad)">Marked ${r.superseded.join(', ')} as outdated</span>.`;
-  $('lres').innerHTML = msg; toast(msg);
+  const msg = showChange(r); $('lres').innerHTML = msg; toast(msg);
 };
 $('clear').onclick = () => { highlightSet=null; citedSet=new Set(); restyle(); network.fit({animation:true}); };
 $('fit').onclick = () => network.fit({animation:true});
-$('reset').onclick = async () => { const rr = await fetch('/api/reset',{method:'POST'}); if(!rr.ok){ toast('Please wait a minute before resetting again.'); return; } highlightSet=null; citedSet=new Set();
-  network.destroy(); network=null; await loadGraph(); toast('Graph rebuilt from source data.'); };
-init();
 </script>
+<script src="/static/manage.js"></script>
+<script>init();</script>
 </body>
 </html>

@@ -1,15 +1,16 @@
 # Company Brain — Track 03 (WeMakeDevs × FalkorDB)
 
-**In one sentence:** a map of the company, where people, projects, documents and chats are dots and the lines show how they connect. You ask a question, it follows the lines to the answer, and it shows you where the answer came from.
+**In one sentence:** any company can turn its docs, tickets, meeting notes and chats into one connected map, then ask who owns what, who knows what, and why decisions were made, with every answer linked to its source.
 
-1. **Everything is connected.** Who wrote what, who owns what, and which meeting a decision came from.
-2. **Ask a question.** The brain follows the connections, like asking around the office, only instantly.
-3. **See the proof.** Every answer links to the original doc, ticket or message, and the map highlights the path.
-4. **It stays current.** Post a new message and it's connected right away. If it changes an old decision, the old one is marked outdated.
+1. **Register your company.** You get a private workspace with its own FalkorDB graph and a secret access link.
+2. **Add your people and projects.** Type them in, or upload a file.
+3. **Add your knowledge.** Paste docs, meeting notes, tickets and chats, or upload `.txt`, `.md`, `.csv` or `.json` files. Each item is linked to the right people, projects and tools.
+4. **Ask anything.** The brain follows the connections to the answer, shows the sources, and highlights the path on the map.
+5. **It stays current.** When a new message records a decision that replaces an older one, the older one is marked outdated.
+
+A public demo company, **Lumen Pay**, is included so judges can try everything without setting anything up.
 
 ---
-
-An agent that understands how a company works. People, teams, projects, systems, docs, tickets, chat messages, meeting notes and decisions all live in one **FalkorDB** graph. The agent answers questions with clickable sources, shows the path it took through the graph, and keeps the graph current as new messages arrive. When a decision is reversed, the older decision is marked as superseded.
 
 ## Live demo
 
@@ -60,8 +61,11 @@ FalkorDB full-text indexes on `Source(text, title)` and `Decision(title, summary
 
 | File | Purpose |
 |---|---|
-| `company_data.py` | Sample company data for "Lumen Pay" (fictional) |
-| `brain_ingest.py` | Builds the graph, links entities, ingests live sources and handles superseding |
+| `workspaces.py` | Company registration. Each company gets its own graph (`cb_<slug>`) and an access key; only the key's SHA-256 hash is stored |
+| `static/landing.html` | Home page: register a company or open the demo |
+| `static/manage.js` | Manage-data panel: people and projects, add knowledge, file import, sharing, private-access lock |
+| `company_data.py` | Data for the demo company "Lumen Pay" (fictional) |
+| `brain_ingest.py` | Works for any workspace: adds people, projects and tools, adds knowledge, detects decisions and replaces outdated ones, bulk import, demo build |
 | `brain_tools.py` | Agent tools: `search_knowledge`, `entity_profile`, `who_knows`, `decision_trail`, `run_cypher`, plus the trace |
 | `brain_agent.py` | Claude agent (tool runner) and the graph-only planner. CLI: `python brain_agent.py "question"` |
 | `server.py`, `static/index.html` | FastAPI app and the UI (vis-network graph) |
@@ -70,10 +74,9 @@ FalkorDB full-text indexes on `Source(text, title)` and `Decision(title, summary
 ## 3-minute demo script
 
 1. **Problem (20s).** Company knowledge is scattered across docs, tickets and chat. New people can't find who knows what or why a choice was made.
-2. **Why Postgres? (30s).** Click the first question. Show the answer with citations, the trace, and the decision node lighting up alongside MEET-1, DOC-1 and MSG-1. Click `[MEET-1]` to open the source.
-3. **Who should I ask about Kafka? (30s).** Tomas ranks first, with evidence. Point out that Priya *owns* the Event Bus but Tomas *knows* Kafka. Ownership and know-how are different edges in the graph.
-4. **What changed about login? (30s).** DEC-3 (Auth0) is shown as superseded by DEC-4 (Keycloak), with the reason and the sources.
-5. **Keeping it current (40s).** Post the prefilled message from Maya. The toast shows that DEC-8 was created and DEC-1 superseded. Ask the Postgres question again: the answer now shows the change.
-6. **Close (20s).** It's one graph with clear sources, it traces decisions to their origin, and it stays current.
+2. **Demo company (60s).** Open `/w/demo`. Ask "Why did we choose Postgres?": show the cited answer, then click `[MEET-1]` to open the source. Ask "Who should I ask about Kafka?": Tomas *knows* Kafka even though Priya *owns* the Event Bus.
+3. **Stays current (30s).** Post the prefilled message from Maya. DEC-1 is marked outdated, and asking again shows the change.
+4. **Your own company (50s).** On the home page, create a workspace and save the private link. In **Manage data**, paste three people and two projects, then upload the CSV template. Ask one of the suggested questions: the brain already knows your company.
+5. **Close (20s).** Every company gets its own graph in FalkorDB. Answers come with sources, decisions are traced to their origin, and knowledge stays current.
 
-Click **Reset data** before recording.
+Click **Reset** in the demo before recording.
