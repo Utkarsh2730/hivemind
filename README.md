@@ -18,13 +18,32 @@ It answers who owns what, who knows what and why decisions were made — with so
 
 **WeMakeDevs × FalkorDB Hackathon · Track 03 — Company Brain**
 
-[Getting started](#getting-started) · [Features](#features) · [Architecture](#architecture) · [How we use FalkorDB](#how-we-use-falkordb) · [Run offline](#run-offline-and-self-host)
+[For judges](#for-judges) · [Getting started](#getting-started) · [Features](#features) · [Architecture](#architecture) · [How we use FalkorDB](#how-we-use-falkordb) · [Run offline](#run-offline-and-self-host)
 
 </div>
 
-<!-- TODO: add the live demo URL and video link once deployed -->
+<!-- TODO: add the live demo URL and YouTube link once published -->
 
 ![Hivemind landing page](docs/landing.png)
+
+## For judges
+
+**Watch:** [demo video (3:30, 1080p)](https://github.com/Utkarsh2730/hivemind/releases/latest/download/hivemind-demo.mp4) — also playable offline once downloaded.
+
+**Run it yourself, fully offline** — no accounts, API keys or internet needed after download:
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and start it.
+2. Download **[hivemind-offline.tar.gz](https://github.com/Utkarsh2730/hivemind/releases/latest/download/hivemind-offline.tar.gz)** from the [latest release](https://github.com/Utkarsh2730/hivemind/releases/latest) — both Docker images and an installer in one file.
+3. In a terminal:
+   ```bash
+   tar -xzf hivemind-offline.tar.gz
+   cd bundle && ./install.sh
+   ```
+4. Open **http://localhost:8000** → **Try the live demo**. Suggested path: ask a suggested question, open **Knowledge risks**, generate a **sprint plan** in Documents, then **Create a workspace** to try it with your own data.
+
+Every release bundle is built and verified automatically: GitHub Actions starts the stack, reinstalls the bundle from scratch as above, and checks cited answers, graph-algorithm insights and sprint plans (`scripts/smoke_test.sh`). Offline, Hivemind runs in graph-only mode; Claude, GitHub import and Slack are optional extras that need internet.
+
+To stop it: `docker compose down` in the `bundle` folder.
 
 ---
 
@@ -198,11 +217,9 @@ Optional settings go in a `.env` file next to `docker-compose.yml`, for example 
 
 **Air-gapped machines (no internet at all)**
 
-```bash
-# On a machine with Docker and internet
-./scripts/package_offline.sh          # -> offline/hivemind-offline.tar.gz (both images + installer)
+Download the prebuilt **[hivemind-offline.tar.gz](https://github.com/Utkarsh2730/hivemind/releases/latest/download/hivemind-offline.tar.gz)** (or build it yourself with `./scripts/package_offline.sh` on a machine with Docker and internet), copy it over, then:
 
-# On the offline machine
+```bash
 tar -xzf hivemind-offline.tar.gz && cd bundle && ./install.sh
 ```
 
@@ -265,6 +282,7 @@ Requires `pip install mcp` (1.x or 2.x).
 | Scale | 400 items imported in under a second; above 450 nodes the graph view shows an overview and loads only the subgraph behind each answer. |
 | Real data | Importing `FalkorDB/falkordb-py` from GitHub produced 61 items from 18 contributors, expert rankings and a sprint plan from open issues. |
 | Offline | Both pages render with all external hosts blocked; no runtime requests leave the server. |
+| Continuous integration | Every push runs the unit tests and accuracy check against FalkorDB, starts the Docker Compose stack, builds the offline bundle, reinstalls it from scratch and runs `scripts/smoke_test.sh` against it. |
 
 ## Security and privacy
 
