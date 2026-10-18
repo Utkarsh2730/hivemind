@@ -32,7 +32,7 @@ def get_db():
             )
         else:
             from redislite.falkordb_client import FalkorDB
-            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "falkor.db")
+            path = os.environ.get("BRAIN_DB_PATH") or os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "falkor.db")
             os.makedirs(os.path.dirname(path), exist_ok=True)
             _db = FalkorDB(path)
     return _db

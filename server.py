@@ -3,25 +3,37 @@
 Local:  .venv/bin/python server.py   then open http://localhost:8000
 Online: the host sets PORT; the app listens on 0.0.0.0 (see render.yaml).
 """
+import json
 import os
+import queue
 import threading
 import time
 from collections import defaultdict, deque
 
 import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 import brain_agent
 import brain_docs
+import brain_github
 import brain_ingest
 import company_data as cd
 import workspaces
 from graph_db import backend, get_graph, workspace
 
-app = FastAPI(title="Company Brain")
+from contextlib import asynccontextmanager  # noqa: E402
+
+
+@asynccontextmanager
+async def lifespan(app):
+    ensure_demo()
+    yield
+
+
+app = FastAPI(title="Company Brain", lifespan=lifespan)
 HERE = os.path.dirname(os.path.abspath(__file__))
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 
@@ -70,6 +82,14 @@ class Generate(BaseModel):
     weeks: int = Field(default=2, ge=1, le=4)
 
 
+class GitHubImport(BaseModel):
+    repo: str = Field(max_length=200)
+
+
+class Keys(BaseModel):
+    keys: list[str] = Field(max_length=400)
+
+
 class Ask(BaseModel):
     question: str = Field(max_length=400)
 
@@ -98,7 +118,6 @@ class Bulk(BaseModel):
 
 
 # ---------- pages ----------
-@app.on_event("startup")
 def ensure_demo():
     try:
         with workspace("demo"):
@@ -154,19 +173,48 @@ def meta(w: dict = Depends(ws)):
     }
 
 
+MAP_LIMIT = 450  # above this many nodes the map shows people/projects/tools/decisions + the newest items
+
+
+def _graph_payload(node_rows, edge_rows, truncated=False, total=0):
+    keys = {r[0] for r in node_rows}
+    return {
+        "nodes": [dict(id=k, type=t, name=n, kind=kind, status=st, detail=(d or "")[:400], date=dt)
+                  for k, t, n, kind, st, d, dt in node_rows],
+        "edges": [dict(source=a, rel=r, target=b) for a, r, b in edge_rows if a in keys and b in keys],
+        "truncated": truncated, "total": total or len(node_rows),
+    }
+
+
+NODE_RET = "RETURN n.key, labels(n)[0], coalesce(n.name, n.title), n.kind, n.status, coalesce(n.role, n.summary, n.text, ''), n.date"
+
+
 @app.get("/api/w/{slug}/graph")
 def graph(w: dict = Depends(ws)):
     with workspace(w["slug"]):
         g = get_graph()
-        nodes = g.ro_query(
-            "MATCH (n) RETURN n.key, labels(n)[0], coalesce(n.name, n.title), n.kind, n.status, "
-            "coalesce(n.role, n.summary, n.text, ''), n.date").result_set
-        edges = g.ro_query("MATCH (a)-[r]->(b) RETURN a.key, type(r), b.key").result_set
-    return {
-        "nodes": [dict(id=k, type=t, name=n, kind=kind, status=st, detail=(d or "")[:400], date=dt)
-                  for k, t, n, kind, st, d, dt in nodes],
-        "edges": [dict(source=a, rel=r, target=b) for a, r, b in edges],
-    }
+        total = g.ro_query("MATCH (n) RETURN count(n)").result_set[0][0]
+        if total <= MAP_LIMIT:
+            nodes = g.ro_query("MATCH (n) " + NODE_RET).result_set
+            edges = g.ro_query("MATCH (a)-[r]->(b) RETURN a.key, type(r), b.key").result_set
+            return _graph_payload(nodes, edges, total=total)
+        nodes = g.ro_query("MATCH (n) WHERE NOT n:Source " + NODE_RET + " LIMIT 300").result_set
+        nodes += g.ro_query("MATCH (n:Source) WITH n ORDER BY n.date DESC LIMIT 120 " + NODE_RET).result_set
+        keys = [r[0] for r in nodes]
+        edges = g.ro_query("MATCH (a)-[r]->(b) WHERE a.key IN $k AND b.key IN $k RETURN a.key, type(r), b.key", {"k": keys}).result_set
+        return _graph_payload(nodes, edges, truncated=True, total=total)
+
+
+@app.post("/api/w/{slug}/graph/focus")
+def graph_focus(body: Keys, w: dict = Depends(ws)):
+    """The nodes behind an answer plus their direct neighbours (used when the full map is too big)."""
+    with workspace(w["slug"]):
+        g = get_graph()
+        nodes = g.ro_query("MATCH (c) WHERE c.key IN $k OPTIONAL MATCH (c)--(nb) WITH collect(DISTINCT c) + collect(DISTINCT nb) AS ns "
+                           "UNWIND ns AS n WITH DISTINCT n WHERE n IS NOT NULL " + NODE_RET + " LIMIT 400", {"k": body.keys}).result_set
+        keys = [r[0] for r in nodes]
+        edges = g.ro_query("MATCH (a)-[r]->(b) WHERE a.key IN $k AND b.key IN $k RETURN a.key, type(r), b.key", {"k": keys}).result_set
+    return _graph_payload(nodes, edges)
 
 
 @app.post("/api/w/{slug}/ask")
@@ -195,6 +243,72 @@ def generate(body: Generate, request: Request, w: dict = Depends(ws)):
                                        company=w["name"].replace(" (demo)", ""))
         except ValueError as e:
             raise HTTPException(400, str(e))
+
+
+@app.post("/api/w/{slug}/ask/stream")
+def ask_stream(body: Ask, request: Request, w: dict = Depends(ws)):
+    """Server-sent events: one 'step' event per graph tool as it runs, then the final 'answer'."""
+    _rate_limit(request, "ask")
+    company = w["name"].replace(" (demo)", "")
+    events: queue.Queue = queue.Queue()
+
+    def run():
+        with workspace(w["slug"]):
+            on_step = lambda step, keys: events.put(("step", {**step, "keys": keys[:60]}))
+            try:
+                res = brain_agent.answer(body.question, company=company, on_step=on_step)
+            except Exception as e:
+                try:
+                    res = brain_agent.answer(body.question, mode="graph", on_step=on_step)
+                    res["answer"] += "\n\n(The AI model was unavailable, so this answer came straight from the company map.)"
+                except Exception:
+                    res = {"answer": f"Something went wrong: {e}", "mode": "error", "citations": [], "trace": [],
+                           "highlight": [], "cited": []}
+            events.put(("answer", res))
+
+    threading.Thread(target=run, daemon=True).start()
+
+    def stream():
+        while True:
+            try:
+                kind, data = events.get(timeout=15)
+            except queue.Empty:
+                yield ": keep-alive\n\n"
+                continue
+            yield f"event: {kind}\ndata: {json.dumps(data, default=str)}\n\n"
+            if kind == "answer":
+                break
+
+    return StreamingResponse(stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.post("/api/w/{slug}/import/github")
+def import_github(body: GitHubImport, request: Request, w: dict = Depends(ws)):
+    _rate_limit(request, "import")
+    if w["demo"]:
+        raise HTTPException(403, "Create your own workspace to import a repository.")
+    with workspace(w["slug"]), _locks[w["slug"]]:
+        _check_capacity(100)
+        try:
+            return brain_github.import_repo(body.repo)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+
+
+@app.post("/api/w/{slug}/delete")
+def delete_item(body: Keys, request: Request, w: dict = Depends(ws)):
+    """Delete items (docs/tickets/messages) or mark decisions as 'not a decision'."""
+    _rate_limit(request, "write")
+    if w["demo"] and any(k in {s["key"] for s in cd.SOURCES} or k in {d[0] for d in cd.DECISIONS} for k in body.keys):
+        raise HTTPException(403, "The demo's original data can't be deleted. Use Reset instead.")
+    out = []
+    with workspace(w["slug"]), _locks[w["slug"]]:
+        for k in body.keys[:50]:
+            try:
+                out.append(brain_ingest.remove_decision(k) if k.startswith("DEC-") else brain_ingest.delete_source(k))
+            except ValueError as e:
+                out.append({"key": k, "error": str(e)})
+    return {"results": out}
 
 
 def _check_capacity(add_sources=0):

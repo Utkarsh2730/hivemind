@@ -12,12 +12,21 @@ _WRITE_RE = re.compile(r"\b(CREATE|MERGE|DELETE|DETACH|SET|REMOVE|DROP|CALL\s+db
 
 
 class Trace:
-    def __init__(self):
-        self.steps, self.keys = [], []
+    def __init__(self, on_step=None):
+        self.steps, self.keys, self.on_step = [], [], on_step
 
     def __enter__(self):
         self._tok = _trace.set(self)
         return self
+
+    def __exit__(self, *a):
+        _trace.reset(self._tok)
+
+
+class quiet:
+    """Run tools without recording them (for internal lookups inside a bigger step)."""
+    def __enter__(self):
+        self._tok = _trace.set(None)
 
     def __exit__(self, *a):
         _trace.reset(self._tok)
@@ -29,6 +38,8 @@ def _record(tool, args, result: dict):
     if t is not None:
         t.steps.append({"tool": tool, "args": args, "found": len(keys)})
         t.keys.extend(k for k in keys if k not in t.keys)
+        if t.on_step:
+            t.on_step(t.steps[-1], keys)
     return json.dumps(result, default=str)
 
 
@@ -41,7 +52,10 @@ def _collect_keys(obj):
                 yield from _collect_keys(v)
     elif isinstance(obj, list):
         for v in obj:
-            yield from _collect_keys(v)
+            if isinstance(v, str) and (re.fullmatch(r"[A-Z]{2,5}-\d+", v) or re.fullmatch(r"[a-z]+:[\w-]+", v)):
+                yield v
+            else:
+                yield from _collect_keys(v)
 
 
 def _q(query, params=None):
@@ -67,8 +81,9 @@ def _sources(keys):
         "MATCH (s:Source) WHERE s.key IN $k "
         "OPTIONAL MATCH (a:Person)-[:AUTHORED]->(s) "
         "RETURN s.key AS key, s.kind AS kind, s.title AS title, s.date AS date, s.channel AS channel, "
-        "s.status AS status, a.name AS author, s.text AS text ORDER BY s.date", {"k": keys})
-    return rows
+        "s.status AS status, a.name AS author, s.text AS text", {"k": keys})
+    order = {k: i for i, k in enumerate(keys)}  # keep relevance order from the search
+    return sorted(rows, key=lambda r: order.get(r["key"], 1e9))
 
 
 # ---------------- tools ----------------
@@ -76,9 +91,20 @@ def _sources(keys):
 def search_knowledge(query: str, limit: int = 8) -> str:
     words = re.findall(r"[A-Za-z0-9]{3,}", query)
     stop = {"the", "and", "who", "why", "what", "did", "does", "for", "how", "our", "are", "was", "with", "about", "that", "this"}
-    terms = "|".join(w for w in words if w.lower() not in stop) or query
-    hits = _q("CALL db.idx.fulltext.queryNodes('Source', $t) YIELD node, score "
-              "RETURN node.key AS key, score ORDER BY score DESC LIMIT $l", {"t": terms, "l": limit})
+    kept = [w for w in dict.fromkeys(w.lower() for w in words) if w not in stop][:8] or [query]
+    terms = "|".join(kept)
+    # Score each word separately and add up, so items that cover more of the question rank first.
+    totals = {}
+    for w in kept:
+        try:
+            rows = _q("CALL db.idx.fulltext.queryNodes('Source', $t) YIELD node, score "
+                      "RETURN node.key AS key, score LIMIT 50", {"t": w})
+        except Exception:
+            continue
+        for r in rows:
+            cur = totals.setdefault(r["key"], [0.0, 0])
+            cur[0] += r["score"]; cur[1] += 1
+    hits = [{"key": k} for k, _ in sorted(totals.items(), key=lambda x: (-x[1][1], -x[1][0]))[:limit]]
     entities = resolve(query)
     if entities:  # boost sources that mention the resolved entities
         extra = _q("MATCH (s:Source)-[:MENTIONS]->(e) WHERE e.key IN $k "
@@ -154,9 +180,9 @@ def who_knows(topic: str) -> str:
                 s["score"] += w
     owners = _q("MATCH (l:Person)-[:LEADS]->(p:Project) WHERE p.key IN $k OR (p)-[:USES]->(:System {key: $k[0]}) "
                 "RETURN l.key AS key, l.name AS name, p.name AS project", {"k": keys})
-    people = {r["key"]: r for r in _q("MATCH (p:Person)-[:MEMBER_OF]->(t) WHERE p.key IN $k "
+    people = {r["key"]: r for r in _q("MATCH (p:Person) WHERE p.key IN $k OPTIONAL MATCH (p)-[:MEMBER_OF]->(t) "
                                        "RETURN p.key AS key, p.name AS name, p.role AS role, t.name AS team", {"k": list(scores)})}
-    ranked = sorted(scores.items(), key=lambda x: -x[1]["score"])[:5]
+    ranked = [x for x in sorted(scores.items(), key=lambda x: -x[1]["score"]) if x[0] in people][:5]
     result = {"topic": ents, "experts": [{**people[p], "score": s["score"],
                                           "evidence": [{"key": k, "signal": v} for k, v in s["evidence"].items()]}
                                          for p, s in ranked],

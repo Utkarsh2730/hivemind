@@ -77,6 +77,15 @@ label.f{display:block;font-size:12.5px;color:var(--muted);margin:0 0 6px}
 .src .m{color:var(--dim);font-size:11.5px;white-space:nowrap}
 .src .x{display:none;color:var(--muted);font-size:13px;line-height:1.55;margin-top:6px}
 .src.focus .x{display:block}
+.src .acts{display:none;margin-top:8px;gap:6px}
+.src.focus .acts{display:flex}
+.mini{background:none;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:3px 8px;font-size:11.5px;cursor:pointer}
+.mini:hover{color:#fca5a5;border-color:#ef444466}
+.live li{animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.modal{position:fixed;inset:0;background:#000a;display:none;place-items:center;z-index:35;padding:16px}
+.modal.open{display:grid}
+.modal pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:11.5px;overflow:auto;max-height:50vh;white-space:pre-wrap;word-break:break-all}
 .dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
 .old{color:var(--bad);font-size:10.5px;border:1px solid #ef444466;border-radius:4px;padding:0 4px}
 details.how{margin-top:6px;color:var(--muted);font-size:13px}
@@ -172,6 +181,7 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
     <button class="ghost" id="menubtn" aria-label="More options">&middot;&middot;&middot;</button>
     <div class="menu-list" id="menu">
       <button id="share">Copy private link</button>
+      <button id="mcp">Use in Claude Desktop (MCP)</button>
       <button id="reset">Reset data</button>
       <a href="/">Home</a>
     </div>
@@ -252,6 +262,13 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
       <div class="res" id="k-res"></div>
     </div>
 
+    <div class="sec" id="sec-gh">
+      <h4>Import from GitHub</h4>
+      <p class="d">Paste a public repository. Its recent issues, pull requests and comments become linked knowledge: contributors become people and issues become tickets.</p>
+      <div style="display:flex;gap:8px"><input id="gh-repo" maxlength="200" placeholder="owner/repo or https://github.com/owner/repo"><button class="btn" id="gh-go">Import</button></div>
+      <div class="res" id="gh-res"></div>
+    </div>
+
     <div class="sec" id="sec-files">
       <h4>Upload files</h4>
       <p class="d">.txt or .md (one doc per file), .csv or .json (many items). <a href="#" id="tpl-csv" style="color:var(--accent2)">CSV template</a> &middot; <a href="#" id="tpl-json" style="color:var(--accent2)">JSON template</a></p>
@@ -286,6 +303,12 @@ details.team summary{font-size:14px;color:var(--ink);font-weight:600}
   <div class="gap"></div>
   <div style="display:flex;gap:8px"><button class="btn" id="gate-go">Open</button><a class="ghost" href="/">Home</a></div>
   <div class="res err" id="gate-res"></div>
+</div></div>
+<div class="modal" id="mcpmodal"><div class="card" style="width:min(620px,100%)">
+  <h3 style="margin:0 0 6px">Use this brain from Claude Desktop or Cursor</h3>
+  <p class="muted" style="margin:0 0 10px;line-height:1.5;font-size:13px">Download <span class="mono">mcp_server.py</span> from the project repo, then add this to your Claude Desktop config (<span class="mono">claude_desktop_config.json</span>). Claude can then ask your company brain, write PRDs and sprint plans, and add notes. The config contains your private key, so keep it private.</p>
+  <pre id="mcpcfg"></pre>
+  <div style="display:flex;gap:8px"><button class="btn" id="mcpcopy">Copy config</button><button class="ghost" id="mcpclose">Close</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/static/app.js"></script>

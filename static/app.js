@@ -48,9 +48,14 @@ function edgeView(e, i) {
     width: on && highlightSet ? 1.6 : .7, dashes: e.rel === 'SUPERSEDES',
     font: { color: '#a99dff', size: 9, strokeWidth: 0, face: 'Inter', background: '#0b0b12' }, smooth: { type: 'continuous' } };
 }
-async function loadGraph() {
-  raw = await api('/graph');
-  $('stats').textContent = raw.nodes.length ? `${raw.nodes.length} things, ${raw.edges.length} connections · click any dot` : 'The map fills up as you add info';
+let mapMode = 'full';
+async function loadGraph(data) {
+  raw = data || await api('/graph');
+  mapMode = data ? 'focus' : 'full';
+  $('stats').textContent = !raw.nodes.length ? 'The map fills up as you add info' :
+    data ? `Showing ${raw.nodes.length} connected things · Show everything to go back` :
+    raw.truncated ? `Showing ${raw.nodes.length} of ${raw.total} things (newest) · click any dot` :
+    `${raw.nodes.length} things, ${raw.edges.length} connections · click any dot`;
   if (network) { network.destroy(); network = null; }
   nodes = new vis.DataSet(raw.nodes.map(nodeView));
   edges = new vis.DataSet(raw.edges.map(edgeView));
@@ -61,7 +66,11 @@ async function loadGraph() {
   if (highlightSet) focusOn([...highlightSet]);
 }
 function restyle() { nodes.update(raw.nodes.map(nodeView)); edges.clear(); edges.add(raw.edges.map(edgeView)); }
-function focusOn(keys) {
+async function focusOn(keys) {
+  if (raw.truncated || mapMode === 'focus') {  // big workspace: load just the part of the map behind this answer
+    const missing = keys.filter(k => !raw.nodes.some(n => n.id === k));
+    if (missing.length) { try { highlightSet = new Set(keys); await loadGraph(await api('/graph/focus', { keys: keys.slice(0, 400) })); } catch (e) {} }
+  }
   highlightSet = new Set(keys); restyle();
   const present = keys.filter(k => nodes.get(k));
   if (present.length) network.fit({ nodes: present, animation: { duration: 700, easingFunction: 'easeInOutQuad' } });
@@ -75,7 +84,7 @@ function inspect(key) {
     <div class="muted">${esc((n.detail || '').slice(0, 240))}</div>
     <div style="color:var(--dim);margin-top:6px">${esc(n.date || '')}${n.status ? ' · ' + esc(n.status.replace('_', ' ')) : ''} · ${links} connections</div>`;
 }
-$('showall').onclick = () => { highlightSet = null; citedSet = new Set(); restyle(); network.fit({ animation: true }); };
+$('showall').onclick = async () => { highlightSet = null; citedSet = new Set(); if (mapMode === 'focus') await loadGraph(); else { restyle(); network.fit({ animation: true }); } };
 
 // ---------- markdown (answers + generated docs) ----------
 function inline(t) {
@@ -110,10 +119,26 @@ function sourceList(cits) {
     const col = c.label === 'Decision' ? COLORS.Decision : COLORS[c.kind];
     return `<div class="src" data-k="${c.key}"><div class="t"><i class="dot" style="background:${col}"></i><b>${esc(c.title)}</b>
       ${c.status === 'superseded' ? '<span class="old">outdated</span>' : ''}<span class="m">${esc(c.author || c.kind)} · ${esc(c.date || '')}</span></div>
-      <div class="x">${esc(c.text)}</div></div>`;
+      <div class="x">${esc(c.text)}</div>
+      <div class="acts">${c.label === 'Decision' ? `<button class="mini" data-act="nd" data-key="${c.key}">Not a decision</button>`
+        : `<button class="mini" data-act="del" data-key="${c.key}">Remove this item</button>`}</div></div>`;
   }).join('');
 }
-document.addEventListener('click', e => {
+document.addEventListener('click', async e => {
+  const act = e.target.closest('[data-act]');
+  if (act) {
+    e.stopPropagation();
+    const key = act.dataset.key, nd = act.dataset.act === 'nd';
+    if (!confirm(nd ? `Mark ${key} as not a decision? Anything it marked outdated becomes current again.` : `Remove ${key} from the brain?`)) return;
+    try {
+      const r = (await api('/delete', { keys: [key] })).results[0];
+      if (r.error) { toast(esc(r.error)); return; }
+      act.closest('.src').remove();
+      toast(nd ? `${key} removed${r.restored.length ? `; ${r.restored.join(', ')} is current again` : ''}.` : `${key} removed${r.decisions_removed.length ? ` with decision ${r.decisions_removed.join(', ')}` : ''}.`);
+      await refresh();
+    } catch (err) { if (err.message !== 'locked') toast(esc(err.message)); }
+    return;
+  }
   const el = e.target.closest('[data-k]'); if (!el) return;
   const k = el.dataset.k, box = el.closest('.view') || document;
   box.querySelectorAll('.src').forEach(s => s.classList.toggle('focus', s.dataset.k === k && !(el.classList.contains('src') && s === el && el.classList.contains('focus'))));
@@ -133,16 +158,42 @@ document.addEventListener('click', () => $('menu').classList.remove('open'));
 // ---------- ask ----------
 const TOOL_TEXT = { search_knowledge: 'Searched docs, tickets and chats', entity_profile: 'Looked up', who_knows: 'Checked who has worked on',
   decision_trail: 'Followed the decision history of', run_cypher: 'Ran a custom map query' };
+async function askStream(q, onStep) {
+  const resp = await fetch(`/api/w/${SLUG}/ask/stream`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Workspace-Key': getKey() }, body: JSON.stringify({ question: q }) });
+  if (resp.status === 401) { $('gate').classList.add('open'); throw new Error('locked'); }
+  if (!resp.ok || !resp.body) { let d = {}; try { d = await resp.json(); } catch (e) {} throw new Error(typeof d.detail === 'string' ? d.detail : 'Request failed.'); }
+  const reader = resp.body.getReader(), dec = new TextDecoder(); let buf = '', final = null;
+  while (!final) {
+    const { value, done } = await reader.read(); if (done) break;
+    buf += dec.decode(value, { stream: true });
+    let i;
+    while ((i = buf.indexOf('\n\n')) >= 0) {
+      const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+      const ev = (chunk.match(/^event: (.*)$/m) || [])[1], data = (chunk.match(/^data: (.*)$/m) || [])[1];
+      if (!ev || !data) continue;
+      if (ev === 'step') onStep(JSON.parse(data)); else if (ev === 'answer') final = JSON.parse(data);
+    }
+  }
+  if (!final) throw new Error('The connection was interrupted. Please try again.');
+  return final;
+}
+const stepText = s => `${TOOL_TEXT[s.tool] || s.tool}: <i>${esc(String(Object.values(s.args)[0]).slice(0, 80))}</i> (${s.found} found)`;
 async function ask(q) {
   if (!q.trim()) return;
   $('q').value = q; $('go').disabled = true;
-  $('out').innerHTML = `<div class="card"><span class="spin"></span>Looking through the company map&hellip;</div>`;
+  $('out').innerHTML = `<div class="card"><div><span class="spin"></span>Looking through the company map&hellip;</div><ol class="live muted" id="livesteps" style="margin:10px 0 0;padding-left:20px;line-height:1.7;font-size:13px"></ol></div>`;
+  const seen = [];
   let r;
-  try { r = await api('/ask', { question: q.slice(0, 400) }); }
-  catch (e) { $('go').disabled = false; if (e.message !== 'locked') $('out').innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
+  try {
+    r = await askStream(q.slice(0, 400), step => {
+      $('livesteps')?.insertAdjacentHTML('beforeend', `<li>${stepText(step)}</li>`);
+      seen.push(...step.keys); citedSet = new Set(); focusOn([...new Set(seen)]);
+    });
+  } catch (e) { $('go').disabled = false; if (e.message !== 'locked') $('out').innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
   $('go').disabled = false;
   citedSet = new Set(r.cited);
-  const steps = r.trace.map(s => `<li>${TOOL_TEXT[s.tool] || s.tool}: <i>${esc(String(Object.values(s.args)[0]).slice(0, 80))}</i> (${s.found} found)</li>`).join('');
+  const steps = r.trace.map(s => `<li>${stepText(s)}</li>`).join('');
   $('out').innerHTML = `<div class="card answer">${md(r.answer)}
       <details class="how"><summary>How it found this</summary><ol>${steps || '<li>Answered directly</li>'}</ol></details></div>
     ${r.citations.length ? `<div class="h">Sources</div>${sourceList(r.citations)}` : ''}`;
@@ -163,7 +214,7 @@ function welcome() {
   $('out').innerHTML = `<div class="card steps">
     <p style="margin:0 0 14px;font-weight:600">Set up ${esc(META.workspace.name)}</p>
     <div class="s ${people ? 'done' : ''}"><span class="n">${people ? '&#10003;' : '1'}</span><div><b>Add your team &amp; projects</b> so the brain knows who's who.</div></div>
-    <div class="s"><span class="n">2</span><div><b>Add info:</b> paste docs, notes, tickets or chats, or upload files.</div></div>
+    <div class="s"><span class="n">2</span><div><b>Add info:</b> paste docs, notes, tickets or chats, upload files, or import a GitHub repo.</div></div>
     <div class="s"><span class="n">3</span><div><b>Ask questions</b> and <b>write PRDs and sprint plans</b> from your own data.</div></div>
     <button class="btn" onclick="openDrawer(${people ? 'false' : 'true'})">${people ? 'Add info' : 'Add team &amp; projects'}</button>
     <p class="muted" style="font-size:12.5px;margin:12px 0 0">Keep your private link safe (menu &middot;&middot;&middot; &rarr; Copy private link). It's the only way back in.</p></div>`;
@@ -318,7 +369,26 @@ $('tpl-json').onclick = e => { e.preventDefault(); download('company-brain-templ
     { kind: 'ticket', title: 'Fix replica lag', text: 'Billing reads time out when replicas lag.', author: 'Priya Sharma', date: '2026-04-12', status: 'in_progress', assignee: 'Arjun Mehta' }]
 }, null, 2), 'application/json'); };
 
+$('gh-go').onclick = async () => {
+  const repo = $('gh-repo').value.trim(); if (!repo) { setRes('gh-res', 'Paste a repository first.'); return; }
+  $('gh-go').disabled = true; setRes('gh-res', '<span class="spin"></span>Reading issues, pull requests and comments&hellip;', true);
+  try {
+    const r = await api('/import/github', { repo });
+    setRes('gh-res', `Imported ${r.added} items from ${esc(r.repo)} into project <b>${esc(r.project)}</b>` +
+      (r.decisions ? `, found ${r.decisions} decisions` : '') + `. The brain now knows ${r.counts.Person || 0} people.`, true);
+    $('gh-repo').value = ''; await refresh();
+  } catch (e) { if (e.message !== 'locked') setRes('gh-res', esc(e.message)); }
+  $('gh-go').disabled = false;
+};
+
 // ---------- menu actions + gate ----------
+$('mcp').onclick = () => {
+  const cfg = { mcpServers: { 'company-brain': { command: 'python3', args: ['/path/to/mcp_server.py'],
+    env: { BRAIN_URL: location.origin, BRAIN_WORKSPACE: SLUG, BRAIN_KEY: META && META.workspace.demo ? '' : getKey() } } } };
+  $('mcpcfg').textContent = JSON.stringify(cfg, null, 2); $('mcpmodal').classList.add('open');
+};
+$('mcpcopy').onclick = async () => { try { await navigator.clipboard.writeText($('mcpcfg').textContent); toast('Config copied.'); } catch (e) { toast('Select the text and copy it.'); } };
+$('mcpclose').onclick = () => $('mcpmodal').classList.remove('open');
 $('share').onclick = async () => {
   const link = `${location.origin}/w/${SLUG}#key=${getKey()}`;
   try { await navigator.clipboard.writeText(link); toast('Private link copied. Share it only with your team.'); }
@@ -344,13 +414,14 @@ async function refresh() {
   document.title = m.workspace.name + ' · Company Brain';
   $('wsname').innerHTML = esc(m.workspace.name.replace(' (demo)', '')) + (m.workspace.demo ? '<span class="tag">demo</span>' : '');
   $('share').style.display = m.workspace.demo ? 'none' : '';
-  $('try').innerHTML = m.questions.length ? '<span>Try:</span>' + m.questions.slice(0, 4).map(q => `<button class="chip">${esc(q)}</button>`).join('') : '';
+  $('try').innerHTML = m.questions.length ? '<span>Try:</span>' + m.questions.slice(0, 5).map(q => `<button class="chip">${esc(q)}</button>`).join('') : '';
   $('try').querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
   $('people').innerHTML = m.people.map(p => `<option value="${esc(p.name)}">${esc(p.role)}</option>`).join('');
   const sel = $('g-project').value;
   $('g-project').innerHTML = m.projects.length ? m.projects.map(p => `<option value="${p.key}">${esc(p.name)}</option>`).join('') : '<option value="">No projects yet</option>';
   if (sel && m.projects.some(p => p.key === sel)) $('g-project').value = sel;
   $('sec-files').style.display = m.workspace.demo ? 'none' : '';
+  $('sec-gh').style.display = m.workspace.demo ? 'none' : '';
   $('sec-team').style.display = m.workspace.demo ? 'none' : '';
   $('demo-note').style.display = m.workspace.demo ? '' : 'none';
   if (m.demo_ingest && !$('k-text').value) {
@@ -361,5 +432,18 @@ async function refresh() {
   if (!$('out').innerHTML.trim() || $('out').querySelector('.steps')) welcome();
   return true;
 }
-const init = refresh;
+async function init() {
+  if (!(await refresh())) return;
+  // Deep links: ?ask=question  or  ?write=prd|sprint&project=project:key&weeks=2
+  const qs = new URLSearchParams(location.search);
+  if (qs.get('ask')) ask(qs.get('ask'));
+  else if (qs.get('write')) {
+    showView('write');
+    document.querySelector(`#kind button[data-k="${qs.get('write') === 'sprint' ? 'sprint' : 'prd'}"]`).click();
+    if (qs.get('project')) $('g-project').value = qs.get('project');
+    if (qs.get('weeks')) $('g-weeks').value = qs.get('weeks');
+    if (qs.get('goal')) $('g-goal').value = qs.get('goal');
+    $('g-go').click();
+  }
+}
 init();

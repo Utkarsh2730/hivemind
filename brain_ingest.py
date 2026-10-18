@@ -15,11 +15,24 @@ from datetime import date
 
 from graph_db import get_graph, workspace
 
+# Phrases that record a choice. Kept narrow on purpose: "approved" or "we'll look" alone are not decisions.
 DECISION_RE = re.compile(
-    r"\b(decided|decision:|we will|we'll|we're moving|we are moving|go with|going with|approved|agreed|"
-    r"we freeze|switching to|we chose|we picked)\b",
+    r"\b(decided|decision:|we're moving|we are moving|(?:we will|we'll) (?:use|move|switch|adopt|go with|migrate)|"
+    r"go with|going with|agreed (?:to|on)|we freeze|switching to|we chose|we picked|we've chosen)\b",
     re.IGNORECASE,
 )
+# Common tools and technologies, recognised even without an AI key.
+TECH = ["Postgres", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka", "RabbitMQ", "Elasticsearch", "OpenSearch",
+        "Snowflake", "BigQuery", "Redshift", "dbt", "Airflow", "Spark", "Kubernetes", "Docker", "Terraform", "Helm",
+        "AWS", "GCP", "Azure", "S3", "Lambda", "CloudFront", "Cloudflare", "Vercel", "Netlify", "Heroku", "Render",
+        "React", "React Native", "Next.js", "Vue", "Angular", "Svelte", "Node.js", "Deno", "Python", "Django", "FastAPI",
+        "Flask", "Rails", "Go", "Rust", "Java", "Spring", "Kotlin", "Swift", "Flutter", "GraphQL", "gRPC", "REST",
+        "Stripe", "Auth0", "Okta", "Keycloak", "Firebase", "Supabase", "Datadog", "Sentry", "Grafana", "Prometheus",
+        "PagerDuty", "Jenkins", "GitHub Actions", "CircleCI", "ArgoCD", "Nginx", "Envoy", "Istio", "CockroachDB",
+        "DynamoDB", "Cassandra", "ClickHouse", "FalkorDB", "Neo4j", "OpenAI", "Claude", "Anthropic", "LangChain",
+        "PyTorch", "TensorFlow", "Jetson", "ROS 2", "Segment", "Mixpanel", "Amplitude", "Twilio", "SendGrid",
+        "Salesforce", "HubSpot", "Zendesk", "Jira", "Linear", "Notion", "Figma", "Slack", "Webpack", "Vite", "TypeScript"]
+_TECH_RE = [(re.compile(r"(?<![\w-])" + re.escape(t) + r"(?![\w-])", re.IGNORECASE if len(t) > 3 else 0), t) for t in TECH]
 KIND_PREFIX = {"doc": "DOC", "ticket": "TKT", "message": "MSG", "meeting": "MEET"}
 KINDS = set(KIND_PREFIX)
 LABELS = ["Person", "Team", "Project", "System", "Source", "Decision"]
@@ -100,9 +113,10 @@ def add_team(name: str) -> str:
     return key
 
 
-def add_person(name: str, role: str = "", team: str = "", aliases=None) -> str:
-    name = name.strip()
-    key = f"person:{slugify(name)}"
+def add_person(name: str, role: str = "", team: str = "", aliases=None, _skip_resolve=False) -> str:
+    name = name.strip().lstrip("@")
+    existing = None if _skip_resolve else resolve_person(name)
+    key = existing or f"person:{slugify(name)}"
     first = name.split()[0].lower() if name.split() else name.lower()
     al = list(dict.fromkeys([first, name.lower()] + [a.lower() for a in _names(aliases or [])]))
     g = get_graph()
@@ -142,15 +156,29 @@ def add_project(name: str, team: str = "", lead: str = "", uses=None, status: st
 
 
 def resolve_person(name_or_key: str, create: bool = False) -> str | None:
-    v = (name_or_key or "").strip()
+    """Find a person by key, name, alias or a unique first name, so 'Arjun', 'arjun' and 'Arjun Rao' are one person."""
+    v = (name_or_key or "").strip().lstrip("@")
     if not v:
         return None
-    rows = get_graph().ro_query(
-        "MATCH (p:Person) WHERE p.key = $v OR toLower(p.name) = toLower($v) OR toLower($v) IN p.aliases "
-        "RETURN p.key LIMIT 1", {"v": v.lstrip("@")}).result_set
+    g = get_graph()
+    rows = g.ro_query("MATCH (p:Person) WHERE p.key = $v OR toLower(p.name) = toLower($v) OR toLower($v) IN p.aliases "
+                      "RETURN p.key LIMIT 1", {"v": v}).result_set
     if rows:
         return rows[0][0]
-    return add_person(v) if create else None
+    parts = v.split()
+    same_first = g.ro_query("MATCH (p:Person) WHERE toLower(split(p.name, ' ')[0]) = toLower($f) RETURN p.key, p.name",
+                            {"f": parts[0]}).result_set
+    if len(same_first) == 1:
+        key, name = same_first[0]
+        existing = name.split()
+        if len(parts) == 1:
+            return key  # "Arjun" -> the only Arjun
+        if len(existing) == 1:  # we only knew "Arjun"; now we learn the full name
+            g.query("MATCH (p:Person {key: $k}) SET p.name = $n, p.aliases = p.aliases + [toLower($n)]", {"k": key, "n": v})
+            return key
+        if existing[-1].lower().startswith(parts[-1].lower().rstrip(".")):
+            return key  # "Arjun R." -> "Arjun Rao"
+    return add_person(v, _skip_resolve=True) if create else None
 
 
 def add_entities(people=(), teams=(), projects=(), systems=()) -> dict:
@@ -239,7 +267,8 @@ def _supersede(g, new_key, old_key):
 
 
 def _rule_decision(text):
-    first = re.split(r"(?<=[.!?])\s", text.strip())[0]
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    first = next((x for x in sentences if DECISION_RE.search(x)), sentences[0])
     m = re.search(r"(?:decided to|we will|we'll|we're moving|we are moving|going with|go with|switching to|agreed to|"
                   r"we chose|we picked)\s+(.+)", first, re.I)
     clause = (m.group(1) if m else first).rstrip(".")
@@ -263,6 +292,17 @@ def add_knowledge(kind: str, text: str, author: str = "", title: str = "", date_
     title = (title or "").strip() or (text[:70] + ("..." if len(text) > 70 else ""))
 
     table = _table if _table is not None else _alias_table()
+    # @mentions are people; known technologies are tools. Both work without an AI key.
+    grew = False
+    for handle in set(re.findall(r"(?<![\w.])@([A-Za-z][\w.-]{1,30})", text)):
+        if not resolve_person(handle):
+            add_person(handle); grew = True
+    known_sys = {n.lower() for (n,) in g.ro_query("MATCH (s:System) RETURN s.name").result_set}
+    for rx, tech in _TECH_RE:
+        if tech.lower() not in known_sys and rx.search(title + " " + text):
+            add_system(tech); known_sys.add(tech.lower()); grew = True
+    if grew:
+        table = _alias_table()
     pre_mentions = link_entities(title + "\n" + text, table)
 
     llm = None
@@ -314,8 +354,12 @@ def add_knowledge(kind: str, text: str, author: str = "", title: str = "", date_
         dtitle, summary = _rule_decision(text), text[:400]
         new_proj = {a for a in affects if a.startswith("project:")}
         new_sys = {a for a in affects if a.startswith("system:")}
-        supersedes = [c["key"] for c in candidates
-                      if new_proj & set(c["affects"]) and new_sys & set(c["affects"])]
+        # Stale if it touches the same system, and the same project when both name one.
+        supersedes = []
+        for c in candidates:
+            c_proj = {a for a in c["affects"] if a.startswith("project:")}
+            if new_sys & set(c["affects"]) and (new_proj & c_proj or not new_proj or not c_proj):
+                supersedes.append(c["key"])
     nums = [int(k.split("-")[1]) for (k,) in g.ro_query("MATCH (d:Decision) RETURN d.key").result_set
             if k.split("-")[-1].isdigit()]
     dkey = f"DEC-{max(nums, default=0) + 1}"
@@ -326,6 +370,34 @@ def add_knowledge(kind: str, text: str, author: str = "", title: str = "", date_
             changed["superseded"].append(old)
     changed["decision"] = {"key": dkey, "title": dtitle, "summary": summary, "extraction": "claude" if llm else "rules"}
     return changed
+
+
+def delete_source(key: str) -> dict:
+    """Remove one item. Decisions recorded only in it are removed too, and anything they replaced is restored."""
+    g = get_graph()
+    if not g.ro_query("MATCH (s:Source {key: $k}) RETURN 1", {"k": key}).result_set:
+        raise ValueError("Item not found.")
+    only_here = [k for (k,) in g.ro_query(
+        "MATCH (d:Decision)-[:DECIDED_IN]->(:Source {key: $k}) OPTIONAL MATCH (d)-[:DECIDED_IN]->(o:Source) "
+        "WITH d, count(o) AS n WHERE n = 1 RETURN d.key", {"k": key}).result_set]
+    restored = []
+    for d in only_here:
+        restored += remove_decision(d)["restored"]
+    g.query("MATCH (s:Source {key: $k}) DETACH DELETE s", {"k": key})
+    return {"deleted": key, "decisions_removed": only_here, "restored": restored}
+
+
+def remove_decision(key: str) -> dict:
+    """'This is not a decision': delete it and reactivate decisions it had marked outdated."""
+    g = get_graph()
+    old = [k for (k,) in g.ro_query("MATCH (:Decision {key: $k})-[:SUPERSEDES]->(o) RETURN o.key", {"k": key}).result_set]
+    g.query("MATCH (d:Decision {key: $k}) DETACH DELETE d", {"k": key})
+    restored = []
+    for o in old:
+        if not g.ro_query("MATCH (n:Decision)-[:SUPERSEDES]->(:Decision {key: $o}) RETURN 1", {"o": o}).result_set:
+            g.query("MATCH (d:Decision {key: $o}) SET d.status = 'active'", {"o": o})
+            restored.append(o)
+    return {"removed": key, "restored": restored}
 
 
 def _candidates(g, affects):
@@ -356,6 +428,7 @@ def bulk_import(sources: list[dict], llm_budget: int = 25) -> dict:
                               title=s.get("title", ""), date_=s.get("date", ""), channel=s.get("channel", ""),
                               status=s.get("status", ""), assignee=s.get("assignee", ""),
                               key=s.get("key", s.get("id", "")), use_llm=use_llm,
+                              detect_decisions=s.get("detect_decisions", True),
                               _table=None if use_llm else cached)
             out["added"] += 1
             out["decisions"] += 1 if r["decision"] else 0

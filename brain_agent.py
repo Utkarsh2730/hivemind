@@ -18,6 +18,7 @@ docs, tickets, chat messages, meeting notes and decisions) lives in a FalkorDB g
 
 Rules:
 - Answer only from tool results. If the graph does not contain the answer, say so plainly.
+- For risks, bus factor, key people or "what should leadership worry about", use company_insights.
 - Prefer the specialised tools: decision_trail for why/what-changed questions, who_knows for who-to-ask
   questions (it separates hands-on knowledge from formal ownership), entity_profile for ownership, status,
   tickets and blockers, search_knowledge for anything else. Use run_cypher only when those cannot answer.
@@ -73,6 +74,13 @@ def _claude_answer(question: str, company: str):
         return T.decision_trail(topic)
 
     @beta_tool
+    def company_insights() -> str:
+        """Company-wide knowledge risks from graph algorithms: key connectors (betweenness centrality), central
+        topics (PageRank), systems only one person knows, stalled or blocking tickets, and unconnected knowledge."""
+        import brain_insights
+        return T._record("company_insights", {"scope": "whole company"}, brain_insights.insights())
+
+    @beta_tool
     def run_cypher(query: str) -> str:
         """Run a read-only openCypher query against the graph (MATCH/RETURN only).
 
@@ -90,7 +98,7 @@ def _claude_answer(question: str, company: str):
         output_config={"effort": os.environ.get("BRAIN_EFFORT", "medium")},
         betas=["server-side-fallback-2026-07-01"],
         fallbacks="default",
-        tools=[search_knowledge, entity_profile, who_knows, decision_trail, run_cypher],
+        tools=[search_knowledge, entity_profile, who_knows, decision_trail, company_insights, run_cypher],
         messages=[{"role": "user", "content": question}],
     )
     final = None
@@ -111,6 +119,11 @@ def _fmt_people(ps):
 
 def _offline_answer(question: str) -> str:
     q = question.lower()
+    if re.search(r"\b(risk|risks|bus factor|single point|key people|critical people|insight|worry|stalled|silo)", q):
+        import brain_insights
+        text, keys = brain_insights.insights_text()
+        T._record("company_insights", {"scope": "whole company"}, {"keys": [{"key": k} for k in keys]})
+        return text
     if re.search(r"\b(who)\b.*\b(ask|know|knows|expert|help)\b|\bexpert", q):
         r = json.loads(T.who_knows(question))
         if "error" not in r and r["experts"]:
@@ -150,9 +163,12 @@ def _offline_answer(question: str) -> str:
         r = json.loads(T.entity_profile(question))
         if "profile" in r and r["entity"]["type"] == "Project":
             p = r["profile"][0]
-            tk = "; ".join(f"{t['key']} {t['title']} ({t['status']}, {t['assignee']}) [{t['key']}]" for t in r["tickets"])
-            return (f"**{r['entity']['name']}** is owned by the {p['owning_team']} team and led by "
-                    f"{p['lead']}. Status: {p['status']}. Tickets: {tk or 'none'}.")
+            open_t = [t for t in r["tickets"] if t["status"] != "done"][:6]
+            tk = "; ".join(f"{t['title']} ({t['status'].replace('_', ' ')}{', ' + t['assignee'] if t['assignee'] else ''}) [{t['key']}]"
+                           for t in open_t)
+            owner = f"owned by the {p['owning_team']} team" if p.get("owning_team") else "not assigned to a team yet"
+            lead = f" and led by {p['lead']}" if p.get("lead") else ""
+            return f"**{r['entity']['name']}** is {owner}{lead}. Status: {p['status']}. Tickets: {tk or 'none'}."
     r = json.loads(T.search_knowledge(question))
     if not r["sources"]:
         return "I couldn't find anything in the company graph about that."
@@ -175,9 +191,10 @@ def citations(keys):
     return [by[k] for k in keys if k in by]
 
 
-def answer(question: str, mode: str = "auto", company: str = "this company") -> dict:
+def answer(question: str, mode: str = "auto", company: str = "this company", on_step=None) -> dict:
+    """on_step(step, keys) is called as each graph tool runs, so the UI can show progress live."""
     use_claude = has_credentials() if mode == "auto" else mode == "claude"
-    with T.Trace() as tr:
+    with T.Trace(on_step) as tr:
         text = _claude_answer(question, company) if use_claude else _offline_answer(question)
     cited = list(dict.fromkeys(CITE_RE.findall(text)))
     return {
@@ -216,6 +233,6 @@ def suggestions(limit: int = 5) -> list[str]:
         q.append(f"Why is {blocked[0][0]} blocked and who can unblock it?")
     for name, _ in proj:
         q.append(f"Who owns {name} and what are they working on?")
-    if not q and g.ro_query("MATCH (s:Source) RETURN count(s)").result_set[0][0]:
-        q.append("What are the most recent decisions?")
+    if g.ro_query("MATCH (s:Source) RETURN count(s)").result_set[0][0] >= 3:
+        q.append("Where are our biggest knowledge risks?")
     return q[:limit]

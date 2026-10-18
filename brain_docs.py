@@ -74,9 +74,13 @@ def project_context(project_key: str) -> dict:
         "MATCH (s:Source)-[:MENTIONS]->(e) WHERE e.key = $k OR e.key IN $s OPTIONAL MATCH (a:Person)-[:AUTHORED]->(s) "
         "RETURN DISTINCT s.key AS key, s.kind AS kind, s.title AS title, s.date AS date, a.name AS author, s.text AS text "
         "ORDER BY date DESC LIMIT 25", {"k": project_key, "s": sys_keys})
+    with T.quiet():
+        pe = json.loads(T.who_knows(p[0]["name"])).get("experts", [])
+    ctx["project_experts"] = [{"name": e["name"], "evidence": [x["key"] for x in e["evidence"][:3]]} for e in pe[:3]]
     ctx["experts"] = []
     for s in ctx["systems"]:
-        r = json.loads(T.who_knows(s["name"]))
+        with T.quiet():
+            r = json.loads(T.who_knows(s["name"]))
         top = r.get("experts", [])[:2]
         ctx["experts"].append({"system": s["name"], "key": s["key"],
                                "people": [{"name": e["name"], "role": e.get("role"), "score": e["score"],
@@ -103,7 +107,9 @@ def _owner_for(ticket, ctx):
     for e in ctx["experts"]:
         if e["system"].lower() in text and e["people"]:
             return e["people"][0]["name"]
-    return ctx["project"]["lead"] or "Unassigned"
+    if ctx["project"]["lead"]:
+        return ctx["project"]["lead"]
+    return ctx["project_experts"][0]["name"] + " (suggested)" if ctx.get("project_experts") else "Unassigned"
 
 
 def _priority(ticket):

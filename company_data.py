@@ -172,9 +172,9 @@ BLOCKS = [("PAY-52", "GRW-7")]
 DEMO_QUESTIONS = [
     "Why did we choose Postgres for the ledger, and who made that call?",
     "Who should I ask about Kafka consumer lag?",
+    "Where are our biggest knowledge risks?",
     "What changed about customer login, and why?",
     "Why is the checkout redesign blocked and who can unblock it?",
-    "Who owns the Payments Gateway and what are they working on?",
 ]
 
 DEMO_INGEST = {
