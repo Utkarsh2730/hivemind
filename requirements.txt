@@ -1,0 +1,6 @@
+anthropic>=1.13
+falkordb>=1.7
+fastapi
+uvicorn
+# Embedded FalkorDB for local development only (no Linux build; online deploys use FalkorDB Cloud)
+falkordblite>=0.10; sys_platform == "darwin"
