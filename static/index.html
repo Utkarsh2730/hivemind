@@ -5,364 +5,429 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Company Brain</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/vis-network@9.1.9/standalone/umd/vis-network.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root{
-  --bg:#0b0b12; --panel:#12121c; --panel2:#181826; --line:#26263a; --ink:#ececf4; --muted:#9a9ab0; --dim:#62627a;
-  --accent:#7c6cff; --accent2:#a99dff; --ok:#22c55e; --bad:#ef4444;
-  --person:#8b7bff; --team:#c084fc; --project:#22c55e; --system:#38bdf8; --doc:#f59e0b; --ticket:#fb923c;
-  --message:#94a3b8; --meeting:#eab308; --decision:#f43f5e;
+  --bg:#ffffff; --side:#fafafa; --panel:#ffffff; --sunken:#f4f4f5; --line:#e4e4e7; --line2:#d4d4d8;
+  --ink:#18181b; --ink2:#3f3f46; --muted:#71717a; --dim:#a1a1aa;
+  --accent:#2563eb; --accent-ink:#ffffff; --accent-soft:#eff6ff; --accent-line:#bfdbfe;
+  --ok:#15803d; --ok-soft:#f0fdf4; --bad:#b91c1c; --bad-soft:#fef2f2; --warn:#a16207;
+  --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.08);
+  /* graph */
+  --person:#2563eb; --team:#7c3aed; --project:#059669; --system:#0891b2; --doc:#a1a1aa; --ticket:#a1a1aa;
+  --message:#a1a1aa; --meeting:#a1a1aa; --decision:#dc2626; --outdated:#d4d4d8;
+  --map-bg:#fcfcfd; --map-dot:#e4e4e7; --map-label:#27272a; --map-label2:#71717a; --map-dim:#e4e4e7;
+  --map-edge:#e4e4e7; --map-edge-on:#2563eb; --map-ring:#18181b;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#0a0a0b; --side:#0f0f11; --panel:#121214; --sunken:#18181b; --line:#232326; --line2:#2e2e33;
+    --ink:#f4f4f5; --ink2:#d4d4d8; --muted:#a1a1aa; --dim:#71717a;
+    --accent:#3b82f6; --accent-soft:#172033; --accent-line:#1e3a8a;
+    --ok:#4ade80; --ok-soft:#0f1f14; --bad:#f87171; --bad-soft:#2a1212; --warn:#facc15;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 32px rgba(0,0,0,.5);
+    --person:#60a5fa; --team:#a78bfa; --project:#34d399; --system:#22d3ee; --doc:#71717a; --ticket:#71717a;
+    --message:#71717a; --meeting:#71717a; --decision:#f87171; --outdated:#3f3f46;
+    --map-bg:#0c0c0e; --map-dot:#1c1c20; --map-label:#e4e4e7; --map-label2:#a1a1aa; --map-dim:#27272a;
+    --map-edge:#27272a; --map-edge-on:#60a5fa; --map-ring:#f4f4f5;
+  }
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:14px}
-button{font:inherit}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.5 Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+a{color:var(--accent)}
 .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
 .muted{color:var(--muted)}
+svg.i{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
 
-/* header */
-header{display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid var(--line);height:56px}
-.logo{display:flex;align-items:center;gap:9px;font-weight:700;color:inherit;text-decoration:none;white-space:nowrap}
-.logo i{width:24px;height:24px;border-radius:7px;background:conic-gradient(from 200deg,var(--accent),#38bdf8,var(--ok),var(--accent))}
-.ws{font-weight:600;padding-left:12px;border-left:1px solid var(--line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
-.tag{font-size:10.5px;color:var(--accent2);border:1px solid #7c6cff55;border-radius:99px;padding:2px 7px;margin-left:6px;vertical-align:1px;font-weight:500}
-.sp{flex:1}
-.btn{background:var(--accent);color:#fff;border:0;border-radius:9px;padding:8px 14px;font-weight:600;cursor:pointer;white-space:nowrap}
-.btn:disabled{opacity:.55;cursor:wait}
-.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:9px;padding:7px 11px;cursor:pointer;text-decoration:none;font-size:13px;white-space:nowrap}
-.ghost:hover{color:var(--ink);border-color:var(--dim)}
-.menu{position:relative}
-.menu-list{position:absolute;right:0;top:40px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:6px;min-width:190px;display:none;z-index:15;box-shadow:0 12px 40px #0008}
-.menu-list.open{display:block}
-.menu-list button,.menu-list a{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);padding:8px 10px;border-radius:7px;cursor:pointer;text-decoration:none;font-size:13px}
-.menu-list button:hover,.menu-list a:hover{background:#ffffff0d}
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:236px 1fr;height:100%}
+aside.side{background:var(--side);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.brand{display:flex;align-items:center;gap:9px;padding:14px 16px;font-weight:600;color:var(--ink);text-decoration:none;font-size:14px}
+.mark{width:22px;height:22px;border-radius:6px;background:var(--ink);display:grid;place-items:center}
+.mark svg{width:14px;height:14px;stroke:var(--bg);fill:none;stroke-width:2}
+.wsbox{margin:4px 10px 10px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+.wsbox .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.ws{font-weight:600;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:6px}
+.tag{font-size:10.5px;font-weight:500;color:var(--muted);border:1px solid var(--line2);border-radius:4px;padding:0 5px}
+nav.nav{display:flex;flex-direction:column;gap:1px;padding:4px 8px}
+.nav .sec-l{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;padding:14px 8px 4px}
+.nav button,.nav a{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;border-radius:6px;padding:6px 8px;
+  color:var(--ink2);font-size:13.5px;cursor:pointer;text-align:left;text-decoration:none}
+.nav button:hover,.nav a:hover{background:var(--sunken);color:var(--ink)}
+.nav button.on{background:var(--sunken);color:var(--ink);font-weight:500}
+.nav button.on svg{color:var(--accent)}
+.side .foot{margin-top:auto;padding:12px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.dotok{width:7px;height:7px;border-radius:50%;background:var(--ok)}
 
-/* layout */
-main{display:grid;grid-template-columns:minmax(380px,520px) 1fr;height:calc(100% - 56px)}
-#left{border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
-.tabs{display:flex;gap:4px;padding:12px 18px 0;border-bottom:1px solid var(--line)}
-.tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);padding:8px 10px 11px;cursor:pointer;font-weight:500}
-.tabs button.on{color:var(--ink);border-color:var(--accent)}
-.view{display:none;overflow:auto;padding:18px;flex:1}
+.main{display:grid;grid-template-columns:minmax(400px,560px) 1fr;min-width:0;min-height:0}
+#left{display:flex;flex-direction:column;min-height:0;border-right:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px;padding:0 24px;height:52px;border-bottom:1px solid var(--line);flex:none}
+.top h1{font-size:15px;font-weight:600;margin:0}
+.view{display:none;overflow:auto;padding:22px 24px 40px;flex:1}
 .view.on{display:block}
+.sp{flex:1}
 
-/* inputs */
-.askbox{display:flex;gap:8px;align-items:stretch}
-textarea,input,select{background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:10px;padding:10px 12px;font:inherit;width:100%;min-width:0}
-textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent)}
-.askbox textarea{resize:none;height:56px;line-height:1.4}
-.try{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 16px;align-items:center}
-.try span{color:var(--dim);font-size:12px;margin-right:2px}
-.chip{font-size:12.5px;background:var(--panel);border:1px solid var(--line);color:var(--muted);padding:6px 10px;border-radius:99px;cursor:pointer;text-align:left}
-.chip:hover{color:var(--ink);border-color:var(--accent)}
-label.f{display:block;font-size:12.5px;color:var(--muted);margin:0 0 6px}
-.row{display:flex;gap:10px}
-.row>*{flex:1;min-width:0}
-.seg{display:inline-flex;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:14px}
-.seg button{background:none;border:0;color:var(--muted);padding:7px 14px;border-radius:7px;cursor:pointer;font-weight:500}
-.seg button.on{background:var(--accent);color:#fff}
+/* ---------- controls ---------- */
+.btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:6px;border:1px solid var(--accent);
+  background:var(--accent);color:var(--accent-ink);font-weight:500;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn:hover{filter:brightness(1.08)}
+.btn:disabled{opacity:.55;cursor:default}
+.ghost{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border-radius:6px;border:1px solid var(--line2);
+  background:var(--panel);color:var(--ink2);font-size:13px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.ghost:hover{background:var(--sunken);color:var(--ink)}
+.ghost:disabled{opacity:.5;cursor:default}
+textarea,input,select{background:var(--panel);border:1px solid var(--line2);color:var(--ink);border-radius:6px;padding:8px 10px;
+  font:inherit;font-size:13.5px;width:100%;min-width:0}
+textarea:focus,input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+input::placeholder,textarea::placeholder{color:var(--dim)}
+label.f{display:block;font-size:12.5px;color:var(--ink2);font-weight:500;margin:0 0 5px}
+.row{display:flex;gap:12px}.row>*{flex:1;min-width:0}
+.gap{height:12px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden;margin-bottom:18px}
+.seg button{background:var(--panel);border:0;border-right:1px solid var(--line2);padding:6px 14px;font-size:13px;color:var(--muted);cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--sunken);color:var(--ink);font-weight:500}
 
-/* cards */
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
-.answer{line-height:1.65;font-size:14.5px}
-.answer p{margin:0 0 8px}.answer ul,.doc ul,.doc ol{padding-left:20px;margin:6px 0 10px}
-.cite{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:10.5px;padding:0 5px;border-radius:5px;background:#7c6cff22;color:var(--accent2);border:1px solid #7c6cff44;cursor:pointer;margin:0 1px;vertical-align:1px}
-.cite:hover{background:#7c6cff44}
-.foot{color:var(--dim);font-size:11.5px;margin-top:10px}
-.h{font-size:12px;color:var(--muted);font-weight:600;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.06em}
-.src{border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:6px;background:var(--panel);cursor:pointer}
-.src:hover,.src.focus{border-color:var(--accent)}
-.src .t{display:flex;gap:8px;align-items:center;font-size:13px}
-.src .t b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.src .m{color:var(--dim);font-size:11.5px;white-space:nowrap}
-.src .x{display:none;color:var(--muted);font-size:13px;line-height:1.55;margin-top:6px}
+/* ---------- ask ---------- */
+.askbox{border:1px solid var(--line2);border-radius:8px;background:var(--panel);padding:4px 4px 4px 12px;display:flex;gap:8px;align-items:flex-end}
+.askbox:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.askbox textarea{border:0;box-shadow:none!important;padding:8px 0;resize:none;height:40px;line-height:1.45;background:transparent}
+.askbox .btn{margin:0 0 2px}
+.try{margin:14px 0 22px}
+.try .lbl{font-size:12px;color:var(--muted);margin-bottom:4px}
+.chip{display:flex;align-items:center;gap:8px;width:100%;background:none;border:0;border-bottom:1px solid var(--line);padding:8px 2px;
+  color:var(--ink2);font-size:13.5px;text-align:left;cursor:pointer}
+.chip:last-child{border-bottom:0}
+.chip:hover{color:var(--accent)}
+.chip svg{color:var(--dim)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px 18px;margin-bottom:14px}
+.answer{font-size:14.5px;line-height:1.65;color:var(--ink)}
+.answer p{margin:0 0 10px}.answer ul,.doc ul,.doc ol{padding-left:20px;margin:4px 0 10px}
+.answer li{margin-bottom:4px}
+.cite{display:inline-block;font:500 10.5px/1.6 "JetBrains Mono",monospace;padding:0 4px;border-radius:4px;background:var(--sunken);
+  color:var(--muted);border:1px solid var(--line);cursor:pointer;margin:0 1px;vertical-align:1px;white-space:nowrap}
+.cite:hover{color:var(--accent);border-color:var(--accent-line);background:var(--accent-soft)}
+.foot{color:var(--dim);font-size:12px;margin-top:12px}
+.h{font-size:12px;color:var(--muted);font-weight:500;margin:22px 0 8px}
+.src{border-bottom:1px solid var(--line);padding:9px 2px;cursor:pointer}
+.h+.src{border-top:1px solid var(--line)}
+.src .t{display:flex;gap:10px;align-items:baseline;font-size:13px}
+.src .k{font:500 11px "JetBrains Mono",monospace;color:var(--muted);flex:none;width:58px}
+.src .t b{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0;color:var(--ink)}
+.src .m{color:var(--dim);font-size:12px;white-space:nowrap}
+.src .x{display:none;color:var(--ink2);font-size:13px;line-height:1.6;margin:8px 0 2px 68px}
 .src.focus .x{display:block}
-.src .acts{display:none;margin-top:8px;gap:6px}
+.src:hover .t b,.src.focus .t b{color:var(--accent)}
+.src .acts{display:none;margin:8px 0 2px 68px;gap:6px}
 .src.focus .acts{display:flex}
-.mini{background:none;border:1px solid var(--line);color:var(--muted);border-radius:7px;padding:3px 8px;font-size:11.5px;cursor:pointer}
-.mini:hover{color:#fca5a5;border-color:#ef444466}
-.live li{animation:fade .25s}
-@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
-.modal{position:fixed;inset:0;background:#000a;display:none;place-items:center;z-index:35;padding:16px}
-.modal.open{display:grid}
-.modal pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;font-size:11.5px;overflow:auto;max-height:50vh;white-space:pre-wrap;word-break:break-all}
-.dot{width:8px;height:8px;border-radius:50%;flex:none;display:inline-block}
-.old{color:var(--bad);font-size:10.5px;border:1px solid #ef444466;border-radius:4px;padding:0 4px}
-details.how{margin-top:6px;color:var(--muted);font-size:13px}
-details.how summary{cursor:pointer;color:var(--muted)}
-details.how ol{margin:8px 0 0;padding-left:20px;line-height:1.7}
-.steps .s{display:flex;gap:12px;margin-bottom:14px;line-height:1.5;color:var(--muted)}
-.steps .s b{color:var(--ink)}
-.steps .n{flex:none;width:24px;height:24px;border-radius:50%;background:#7c6cff22;border:1px solid #7c6cff66;color:var(--accent2);display:grid;place-items:center;font-size:12px;font-weight:600}
-.steps .s.done .n{background:#22c55e22;border-color:#22c55e88;color:#86efac}
+.mini{background:none;border:1px solid var(--line2);color:var(--muted);border-radius:5px;padding:2px 8px;font-size:12px;cursor:pointer}
+.mini:hover{color:var(--bad);border-color:var(--bad)}
+.dot{width:7px;height:7px;border-radius:50%;flex:none;display:inline-block}
+.old{color:var(--bad);font-size:11px;font-weight:500}
+details.how summary{cursor:pointer;color:var(--muted);font-size:12.5px;list-style:none;display:inline-flex;align-items:center;gap:6px}
+details.how summary::-webkit-details-marker{display:none}
+details.how summary::before{content:"›";display:inline-block;transition:transform .15s}
+details.how[open] summary::before{transform:rotate(90deg)}
+details.how ol{margin:8px 0 0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)}
+.ansfoot{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+.steps .s{display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);line-height:1.5;color:var(--muted);font-size:13.5px}
+.steps .s:last-of-type{border-bottom:0}
+.steps .s b{color:var(--ink);font-weight:500}
+.steps .n{flex:none;width:20px;height:20px;border-radius:50%;border:1px solid var(--line2);color:var(--muted);display:grid;place-items:center;font-size:11px;margin-top:1px}
+.steps .s.done .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.livesteps{margin:10px 0 0;padding-left:18px;line-height:1.7;font-size:13px;color:var(--muted)}
+.livesteps li{animation:fade .2s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
 
-/* generated doc */
-.doc{line-height:1.6;font-size:14px}
-.doc h1{font-size:20px;margin:0 0 10px;letter-spacing:-.01em}
-.doc h2{font-size:15px;margin:18px 0 6px;color:var(--accent2)}
+/* ---------- documents ---------- */
+.doc{line-height:1.65;font-size:14px}
+.doc h1{font-size:20px;font-weight:600;margin:0 0 6px;letter-spacing:-.01em}
+.doc h2{font-size:14.5px;font-weight:600;margin:22px 0 6px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .doc h3{font-size:14px;margin:14px 0 6px}
 .doc p{margin:0 0 8px}
 .doc table{border-collapse:collapse;width:100%;font-size:12.5px;margin:6px 0 12px;display:block;overflow-x:auto}
-.doc th,.doc td{border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
-.doc th{background:var(--panel2);font-weight:600}
+.doc th,.doc td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left;vertical-align:top}
+.doc th{font-weight:500;color:var(--muted);background:var(--sunken)}
 .doc del{color:var(--dim)}
 .doctools{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 
-/* map */
-#right{position:relative;min-width:0}
-#graph{position:absolute;inset:0;background:radial-gradient(ellipse at 60% 40%,#15152a 0%,var(--bg) 70%)}
-.maptop{position:absolute;left:12px;right:12px;top:12px;display:flex;gap:8px;align-items:center;pointer-events:none}
-.maptop>*{pointer-events:auto}
-.pill{font-size:12px;color:var(--muted);background:#12121cd9;border:1px solid var(--line);border-radius:8px;padding:6px 10px}
-.legend{position:absolute;left:12px;bottom:12px;background:#12121cd9;border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11.5px;color:var(--muted);max-width:calc(100% - 24px)}
+/* ---------- graph ---------- */
+#right{position:relative;min-width:0;display:flex;flex-direction:column}
+.gwrap{position:relative;flex:1;min-height:0}
+#graph{position:absolute;inset:0;background-color:var(--map-bg);background-image:radial-gradient(var(--map-dot) 1px,transparent 1px);background-size:18px 18px}
+.legend{position:absolute;left:12px;bottom:12px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 10px;display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--muted);max-width:calc(100% - 24px)}
 .legend span{display:flex;align-items:center;gap:6px}
-.inspect{position:absolute;right:12px;bottom:12px;width:290px;background:#12121eee;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12.5px;display:none;line-height:1.5}
-.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);border-radius:10px;padding:10px 14px;font-size:13px;box-shadow:0 10px 40px #0008;opacity:0;transition:opacity .3s;pointer-events:none;max-width:min(560px,90vw);z-index:40}
+.inspect{position:absolute;right:12px;bottom:12px;width:280px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:12.5px;display:none;line-height:1.5;box-shadow:var(--shadow)}
+#stats{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:8px;padding:10px 14px;font-size:13px;
+  box-shadow:var(--shadow);opacity:0;transition:opacity .2s;pointer-events:none;max-width:min(560px,90vw);z-index:40}
 .toast.show{opacity:1;pointer-events:auto}
+.toast a,.toast span{color:inherit!important}
 
-/* add-info drawer */
-.overlay{position:fixed;inset:0;background:#0009;display:none;z-index:20}
+/* ---------- drawers & dialogs ---------- */
+.overlay{position:fixed;inset:0;background:rgba(9,9,11,.35);display:none;z-index:20}
 .overlay.open{display:block}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--bg);border-left:1px solid var(--line);z-index:21;transform:translateX(105%);transition:transform .22s;display:flex;flex-direction:column}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:var(--bg);border-left:1px solid var(--line);z-index:21;
+  transform:translateX(102%);transition:transform .2s ease;display:flex;flex-direction:column;box-shadow:var(--shadow)}
 .drawer.open{transform:none}
-.dh{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}
-.dh h3{margin:0;font-size:16px}
-.db{overflow:auto;padding:18px;flex:1}
-.sec{margin-bottom:22px}
-.sec h4{margin:0 0 4px;font-size:14px}
-.sec p.d{margin:0 0 10px;color:var(--muted);font-size:12.5px;line-height:1.5}
+.dh{display:flex;align-items:center;gap:10px;padding:0 20px;height:52px;border-bottom:1px solid var(--line);flex:none}
+.dh h3{margin:0;font-size:15px;font-weight:600}
+.db{overflow:auto;padding:20px;flex:1}
+.sec{margin-bottom:24px}
+.sec h4{margin:0 0 3px;font-size:14px;font-weight:600}
+.sec p.d{margin:0 0 12px;color:var(--muted);font-size:13px;line-height:1.55}
 .sec textarea{min-height:110px;resize:vertical}
-.mono-ta{font-family:"JetBrains Mono",monospace;font-size:12px;min-height:70px!important}
-details.more summary,details.team summary{cursor:pointer;color:var(--muted);font-size:13px;margin:8px 0}
+.sec.card{padding:16px 18px}
+.mono-ta{font-family:"JetBrains Mono",monospace;font-size:12px!important;min-height:72px!important}
+details.more summary,details.team summary{cursor:pointer;color:var(--muted);font-size:13px;margin:10px 0}
+details.team{border-top:1px solid var(--line);padding-top:14px}
 details.team summary{font-size:14px;color:var(--ink);font-weight:600}
-.drop{border:1.5px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px}
+.drop{border:1px dashed var(--line2);border-radius:8px;padding:22px;text-align:center;color:var(--muted);cursor:pointer;font-size:13px;background:var(--side)}
 .drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
 .res{font-size:12.5px;margin-top:8px;line-height:1.5;color:var(--muted)}
-.res.ok{color:#86efac}.res.err{color:#fca5a5}
-.gap{height:10px}
-.gate{position:fixed;inset:0;display:none;place-items:center;background:var(--bg);z-index:30;padding:16px}
-.gate.open{display:grid}
-.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
+.res.ok{color:var(--ok)}.res.err{color:var(--bad)}
+.gate,.modal{position:fixed;inset:0;display:none;place-items:center;z-index:35;padding:16px}
+.gate{background:var(--bg)}
+.modal{background:rgba(9,9,11,.45)}
+.gate.open,.modal.open{display:grid}
+.modal pre{background:var(--sunken);border:1px solid var(--line);border-radius:6px;padding:12px;font-size:11.5px;overflow:auto;max-height:50vh;white-space:pre-wrap;word-break:break-all}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid var(--line2);border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px;margin-right:6px}
 @keyframes s{to{transform:rotate(360deg)}}
 
-@media (max-width:980px){
-  main{display:block;height:auto}
-  #left{border-right:0;border-bottom:1px solid var(--line)}
-  .view{overflow:visible}
-  #right{height:65vh}
-  .inspect{left:12px;width:auto}
-}
-@media (max-width:560px){
-  header{padding:0 12px;gap:8px}
-  .logo span{display:none}
-  #connect{display:none}
-  .view,.tabs{padding-left:16px;padding-right:16px}
-  .row{flex-direction:column;gap:0}
-  .row>*+*{margin-top:10px}
-  .legend{display:none}
+/* ---------- responsive ---------- */
+@media (max-width:1100px){ .main{grid-template-columns:1fr} #right{display:none} .shell.map #right{display:flex;position:fixed;inset:0;z-index:15;background:var(--bg)} .shell.map #mapclose{display:inline-flex!important} }
+@media (min-width:1101px){ #mapbtn{display:none} }
+@media (max-width:760px){
+  .shell{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  aside.side{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center;overflow-x:auto}
+  .wsbox,.nav .sec-l,.side .foot,.nav .hide-m{display:none}
+  nav.nav{flex-direction:row;padding:6px}
+  .nav button,.nav a{white-space:nowrap;width:auto}
+  .brand span{display:none}
+  .view,.top{padding-left:16px;padding-right:16px}
+  .row{flex-direction:column;gap:0}.row>*+*{margin-top:12px}
 }
 @media print{
-  header,.tabs,#right,.doctools,.overlay,.drawer,.toast,#genform,.h,#gensrc{display:none!important}
+  aside.side,.top,#right,.doctools,.overlay,.drawer,.toast,#genform,.h,#gensrc{display:none!important}
   body,html{background:#fff;color:#000;height:auto}
-  main{display:block;height:auto}#left{border:0}
-  .view{display:none!important}#v-write{display:block!important;overflow:visible}
-  .card{border:0;background:#fff;padding:0}
-  .doc,.doc h2{color:#000}.doc th{background:#eee}.doc th,.doc td{border-color:#999}
-  .cite{background:none;border:0;color:#555}
+  .shell,.main{display:block;height:auto}#left{border:0}
+  .view{display:none!important}#v-write{display:block!important;overflow:visible;padding:0}
+  .card{border:0;padding:0}
+  .cite{background:none;border:0;color:#666}
 }
 </style>
 </head>
 <body>
-<header>
-  <a href="/" class="logo"><i></i><span>Company Brain</span></a>
-  <div class="ws" id="wsname">&hellip;</div>
-  <div class="sp"></div>
-  <button class="ghost" id="connect" style="color:var(--ink)">Connect apps</button>
-  <button class="btn" id="addinfo">+ Add info</button>
-  <div class="menu">
-    <button class="ghost" id="menubtn" aria-label="More options">&middot;&middot;&middot;</button>
-    <div class="menu-list" id="menu">
-      <button id="share">Copy private link</button>
-      <button id="menu-connect">Connections (Slack, Jira, Teams...)</button>
-      <button id="mcp">Use in Claude Desktop (MCP)</button>
-      <button id="reset">Reset data</button>
-      <a href="/">Home</a>
-    </div>
-  </div>
-</header>
-<main>
-  <section id="left">
-    <div class="tabs">
-      <button class="on" data-view="ask">Ask</button>
-      <button data-view="write">Write a PRD or sprint plan</button>
-    </div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-ask" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></symbol>
+  <symbol id="i-risk" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 2v6M15 2v6M7 8h10v4a5 5 0 0 1-10 0zM12 17v5"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6M12 19h8"/></symbol>
+  <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-graph" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8.3 7.1 15.6 7M7.2 8.2l3.7 7.6M16.9 9.2l-3.8 6.7"/></symbol>
+</svg>
 
-    <div class="view on" id="v-ask">
-      <div class="askbox">
-        <textarea id="q" maxlength="400" placeholder="Ask anything about your company..."></textarea>
-        <button class="btn" id="go">Ask</button>
-      </div>
-      <div class="try" id="try"></div>
-      <div id="out"></div>
-    </div>
+<div class="shell" id="shell">
+  <aside class="side">
+    <a href="/" class="brand"><span class="mark"><svg viewBox="0 0 24 24"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7h8M7 9l4 6M17 9l-4 6"/></svg></span><span>Company Brain</span></a>
+    <div class="wsbox"><div class="lbl">Workspace</div><div class="ws" id="wsname">&hellip;</div></div>
+    <nav class="nav">
+      <button class="on" data-view="ask"><svg class="i"><use href="#i-ask"/></svg>Ask</button>
+      <button data-view="write"><svg class="i"><use href="#i-doc"/></svg>Documents</button>
+      <button id="nav-risks"><svg class="i"><use href="#i-risk"/></svg>Knowledge risks</button>
+      <div class="sec-l">Data</div>
+      <button id="addinfo"><svg class="i"><use href="#i-plus"/></svg>Add knowledge</button>
+      <button id="connect"><svg class="i"><use href="#i-plug"/></svg>Connections</button>
+      <div class="sec-l">Workspace</div>
+      <button id="share" class="hide-m"><svg class="i"><use href="#i-link"/></svg>Copy access link</button>
+      <button id="mcp" class="hide-m"><svg class="i"><use href="#i-term"/></svg>Claude Desktop (MCP)</button>
+      <button id="reset" class="hide-m"><svg class="i"><use href="#i-reset"/></svg>Reset data</button>
+      <a href="/" class="hide-m"><svg class="i"><use href="#i-home"/></svg>Home</a>
+    </nav>
+    <div class="foot"><span class="dotok"></span><span id="mode">Connected</span></div>
+  </aside>
 
-    <div class="view" id="v-write">
-      <div id="genform">
-        <div class="seg" id="kind"><button class="on" data-k="prd">PRD</button><button data-k="sprint">Sprint plan</button></div>
-        <div class="row">
-          <div><label class="f">Project</label><select id="g-project"></select></div>
-          <div id="g-weeks-wrap" style="display:none;max-width:140px"><label class="f">Length</label>
-            <select id="g-weeks"><option value="1">1 week</option><option value="2" selected>2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option></select></div>
+  <div class="main">
+    <section id="left">
+      <div class="top"><h1 id="title">Ask</h1><span class="sp"></span><button class="ghost" id="mapbtn"><svg class="i"><use href="#i-graph"/></svg>Graph</button></div>
+
+      <div class="view on" id="v-ask">
+        <div class="askbox">
+          <textarea id="q" maxlength="400" placeholder="Ask about people, projects, decisions or blockers..."></textarea>
+          <button class="btn" id="go">Ask</button>
         </div>
-        <div class="gap"></div>
-        <label class="f" id="g-goal-label">What do you want to build? (optional)</label>
-        <input id="g-goal" maxlength="300" placeholder="e.g. Finish the Keycloak migration">
-        <div class="gap"></div>
-        <button class="btn" id="g-go">Write PRD</button>
-        <p class="muted" style="font-size:12.5px;line-height:1.5;margin:10px 0 16px">Built from your company's own decisions, tickets, blockers and experts. Every fact links to its source.</p>
+        <div class="try" id="try"></div>
+        <div id="out"></div>
       </div>
-      <div id="gen"></div>
-    </div>
-  </section>
 
-  <section id="right">
-    <div id="graph"></div>
-    <div class="maptop"><span class="pill" id="stats">Company map</span><span class="sp"></span><button class="ghost pill" id="showall">Show everything</button></div>
-    <div class="legend">
-      <span><i class="dot" style="background:var(--person)"></i>Person</span>
-      <span><i class="dot" style="background:var(--project)"></i>Project</span>
-      <span><i class="dot" style="background:var(--system)"></i>Tool</span>
-      <span><i class="dot" style="background:var(--doc)"></i>Doc / ticket / chat</span>
-      <span><i class="dot" style="background:var(--decision)"></i>Decision</span>
-      <span><i class="dot" style="background:#55556a"></i>Outdated</span>
-    </div>
-    <div class="inspect" id="inspect"></div>
-  </section>
-</main>
+      <div class="view" id="v-write">
+        <div id="genform">
+          <div class="seg" id="kind"><button class="on" data-k="prd">PRD</button><button data-k="sprint">Sprint plan</button></div>
+          <div class="row">
+            <div><label class="f">Project</label><select id="g-project"></select></div>
+            <div id="g-weeks-wrap" style="display:none;max-width:150px"><label class="f">Length</label>
+              <select id="g-weeks"><option value="1">1 week</option><option value="2" selected>2 weeks</option><option value="3">3 weeks</option><option value="4">4 weeks</option></select></div>
+          </div>
+          <div class="gap"></div>
+          <label class="f" id="g-goal-label">Goal (optional)</label>
+          <input id="g-goal" maxlength="300" placeholder="e.g. Finish the Keycloak migration">
+          <div class="gap"></div>
+          <button class="btn" id="g-go">Generate PRD</button>
+          <p class="muted" style="font-size:12.5px;line-height:1.55;margin:12px 0 20px">Generated from this workspace's decisions, tickets, dependencies and expertise. Every statement links to its source.</p>
+        </div>
+        <div id="gen"></div>
+      </div>
+    </section>
+
+    <section id="right">
+      <div class="top"><h1>Knowledge graph</h1><span id="stats"></span><span class="sp"></span>
+        <button class="ghost" id="showall">Reset view</button><button class="ghost" id="mapclose" style="display:none">Close</button></div>
+      <div class="gwrap">
+        <div id="graph"></div>
+        <div class="legend">
+          <span><i class="dot" style="background:var(--person)"></i>Person</span>
+          <span><i class="dot" style="background:var(--project)"></i>Project</span>
+          <span><i class="dot" style="background:var(--system)"></i>System</span>
+          <span><i class="dot" style="background:var(--doc)"></i>Document</span>
+          <span><i class="dot" style="background:var(--decision)"></i>Decision</span>
+        </div>
+        <div class="inspect" id="inspect"></div>
+      </div>
+    </section>
+  </div>
+</div>
 
 <div class="overlay" id="overlay"></div>
 <aside class="drawer" id="drawer">
-  <div class="dh"><h3>Add to the brain</h3><span class="sp"></span><button class="ghost" id="dclose">Close</button></div>
+  <div class="dh"><h3>Add knowledge</h3><span class="sp"></span><button class="ghost" id="dclose">Close</button></div>
   <div class="db">
     <div class="sec">
-      <h4>Paste something</h4>
-      <p class="d">A doc, meeting notes, a ticket or a chat message. It's linked to the right people and projects automatically. If it records a decision that replaces an older one, the old one is marked outdated.</p>
+      <h4>Paste content</h4>
+      <p class="d">Documents, meeting notes, tickets or chat messages. Content is linked to people, projects and systems automatically; a decision that replaces an earlier one marks it as outdated.</p>
       <div class="row">
-        <div><label class="f">Type</label><select id="k-kind"><option value="message">Chat message</option><option value="doc">Doc</option><option value="meeting">Meeting notes</option><option value="ticket">Ticket</option></select></div>
-        <div><label class="f">Written by</label><input id="k-author" list="people" placeholder="Name"></div>
+        <div><label class="f">Type</label><select id="k-kind"><option value="message">Chat message</option><option value="doc">Document</option><option value="meeting">Meeting notes</option><option value="ticket">Ticket</option></select></div>
+        <div><label class="f">Author</label><input id="k-author" list="people" placeholder="Name"></div>
       </div>
       <div class="gap"></div>
-      <textarea id="k-text" maxlength="4000" placeholder="Paste or type here..."></textarea>
-      <details class="more"><summary>More options</summary>
+      <textarea id="k-text" maxlength="4000" placeholder="Paste content here..."></textarea>
+      <details class="more"><summary>More fields</summary>
         <div class="row"><div><label class="f">Title</label><input id="k-title" maxlength="200"></div><div><label class="f">Date</label><input id="k-date" type="date"></div></div>
         <div class="gap"></div>
-        <div class="row"><div><label class="f">Channel (chat)</label><input id="k-channel" maxlength="40" placeholder="#general"></div><div><label class="f">Ticket ID</label><input id="k-key" maxlength="20" placeholder="PAY-12"></div></div>
+        <div class="row"><div><label class="f">Channel</label><input id="k-channel" maxlength="40" placeholder="#general"></div><div><label class="f">Ticket ID</label><input id="k-key" maxlength="20" placeholder="PAY-12"></div></div>
         <div class="gap"></div>
-        <div class="row"><div><label class="f">Ticket status</label><select id="k-status"><option value="">-</option><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></div><div><label class="f">Assignee</label><input id="k-assignee" list="people"></div></div>
+        <div class="row"><div><label class="f">Ticket status</label><select id="k-status"><option value="">None</option><option value="todo">To do</option><option value="in_progress">In progress</option><option value="blocked">Blocked</option><option value="done">Done</option></select></div><div><label class="f">Assignee</label><input id="k-assignee" list="people"></div></div>
       </details>
       <div class="gap"></div>
-      <button class="btn" id="k-save">Add</button>
+      <button class="btn" id="k-save">Add to workspace</button>
       <div class="res" id="k-res"></div>
     </div>
 
     <div class="sec" id="sec-gh">
       <h4>Import from GitHub</h4>
-      <p class="d">Paste a public repository. Its recent issues, pull requests and comments become linked knowledge: contributors become people and issues become tickets.</p>
-      <div style="display:flex;gap:8px"><input id="gh-repo" maxlength="200" placeholder="owner/repo or https://github.com/owner/repo"><button class="btn" id="gh-go">Import</button></div>
+      <p class="d">Recent issues, pull requests and comments from a public repository. Contributors become people; issues become tickets.</p>
+      <div style="display:flex;gap:8px"><input id="gh-repo" maxlength="200" placeholder="owner/repo"><button class="btn" id="gh-go">Import</button></div>
       <div class="res" id="gh-res"></div>
     </div>
 
     <div class="sec" id="sec-files">
       <h4>Upload files</h4>
-      <p class="d">.txt or .md (one doc per file), .csv or .json (many items). <a href="#" id="tpl-csv" style="color:var(--accent2)">CSV template</a> &middot; <a href="#" id="tpl-json" style="color:var(--accent2)">JSON template</a></p>
-      <div class="drop" id="drop">Drop files here or click to choose<input type="file" id="files" multiple accept=".txt,.md,.csv,.json" hidden></div>
+      <p class="d">.txt and .md files become documents; .csv and .json can contain many items. Templates: <a href="#" id="tpl-csv">CSV</a> · <a href="#" id="tpl-json">JSON</a></p>
+      <div class="drop" id="drop">Drop files here, or click to browse<input type="file" id="files" multiple accept=".txt,.md,.csv,.json" hidden></div>
       <div class="res" id="f-res"></div>
     </div>
 
     <details class="team sec" id="sec-team">
-      <summary>Your team &amp; projects</summary>
-      <p class="d">One per line, fields separated by <b>|</b>. Adding the same name again updates it.</p>
-      <label class="f">People: Name | Role | Team</label>
+      <summary>People and projects</summary>
+      <p class="d">One entry per line, fields separated by <span class="mono">|</span>. Re-adding a name updates it.</p>
+      <label class="f">People — Name | Role | Team</label>
       <textarea id="e-people" class="mono-ta" placeholder="Priya Sharma | Engineering Manager | Platform"></textarea>
       <div class="gap"></div>
-      <label class="f">Projects: Name | Team | Lead | Tools (comma separated)</label>
+      <label class="f">Projects — Name | Team | Lead | Systems (comma separated)</label>
       <textarea id="e-projects" class="mono-ta" placeholder="Checkout v2 | Payments | Arjun Mehta | Stripe, Postgres"></textarea>
       <div class="gap"></div>
-      <label class="f">Tools: Name | Other names</label>
+      <label class="f">Systems — Name | Aliases</label>
       <textarea id="e-systems" class="mono-ta" placeholder="Postgres | postgresql, pg"></textarea>
       <div class="gap"></div>
-      <button class="btn" id="e-save">Save team &amp; projects</button>
+      <button class="btn" id="e-save">Save</button>
       <div class="res" id="e-res"></div>
     </details>
-    <p class="muted" id="demo-note" style="display:none;font-size:13px;line-height:1.5">This is the shared demo: you can paste messages, but not upload files or edit the team. <a href="/" style="color:var(--accent2)">Create your own workspace</a> to bring your company's data.</p>
+    <p class="muted" id="demo-note" style="display:none;font-size:13px;line-height:1.55">This is a shared demo workspace: you can add messages, but file uploads, imports and team edits are disabled. <a href="/">Create a workspace</a> to use your own data.</p>
     <datalist id="people"></datalist>
   </div>
 </aside>
 
 <aside class="drawer" id="cdrawer">
-  <div class="dh"><h3>Connect your tools</h3><span class="sp"></span><button class="ghost" id="cclose">Close</button></div>
+  <div class="dh"><h3>Connections</h3><span class="sp"></span><button class="ghost" id="cclose">Close</button></div>
   <div class="db" id="cbody">
-    <p class="muted" id="c-demo" style="display:none;font-size:13px;line-height:1.5;margin-top:0">This is the shared demo, so connections are switched off here. <a href="/" style="color:var(--accent2)">Create your own workspace</a> to connect Slack, Jira, Linear, GitHub, Teams and more.</p>
+    <p class="muted" id="c-demo" style="display:none;font-size:13px;line-height:1.55;margin-top:0">Connections are disabled in the shared demo. <a href="/">Create a workspace</a> to connect Slack, Jira, Linear, GitHub and Microsoft Teams.</p>
 
     <div class="sec card">
       <h4>Slack</h4>
-      <p class="d">New messages in channels the bot is in flow into the brain automatically, and anyone can type <span class="mono">/brain who owns checkout?</span> to get a cited answer in Slack.</p>
-      <ol class="muted" style="font-size:13px;line-height:1.7;padding-left:18px;margin:0 0 10px">
-        <li><a href="#" id="c-manifest" style="color:var(--accent2)">Copy the app manifest</a>, then on <a href="https://api.slack.com/apps?new_app=1" target="_blank" rel="noopener" style="color:var(--accent2)">api.slack.com/apps</a> choose <b>Create New App &rarr; From a manifest</b> and paste it.</li>
-        <li>Click <b>Install to Workspace</b>, then paste the <b>Bot User OAuth Token</b> and the <b>Signing Secret</b> (Basic Information) below.</li>
-        <li>In Slack, invite <b>@Company Brain</b> to the channels it should learn from.</li>
+      <p class="d">Messages from channels the app is added to are captured automatically, and <span class="mono">/brain &lt;question&gt;</span> returns cited answers in Slack.</p>
+      <ol class="muted" style="font-size:13px;line-height:1.75;padding-left:18px;margin:0 0 12px">
+        <li><a href="#" id="c-manifest">Copy the app manifest</a>, then on <a href="https://api.slack.com/apps?new_app=1" target="_blank" rel="noopener">api.slack.com/apps</a> select <b>Create New App → From a manifest</b>.</li>
+        <li>Install the app, then paste the <b>Bot User OAuth Token</b> and <b>Signing Secret</b>.</li>
+        <li>Add <b>@Company Brain</b> to the channels it should learn from.</li>
       </ol>
       <div class="row"><div><label class="f">Bot token</label><input id="c-token" placeholder="xoxb-..." autocomplete="off"></div>
         <div><label class="f">Signing secret</label><input id="c-secret" type="password" placeholder="••••••" autocomplete="off"></div></div>
       <div class="gap"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="c-save-slack">Save Slack</button><button class="ghost" id="c-import-slack">Import recent channel history</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="c-save-slack">Save</button><button class="ghost" id="c-import-slack">Import channel history</button></div>
       <div class="res" id="c-slack-res"></div>
-      <details class="more"><summary>No Slack app? Upload a Slack export instead</summary>
-        <p class="d" style="margin-top:6px">Workspace admins can export from Slack (Settings &rarr; Import/Export data). Drop the .zip here; it's read in your browser and only messages are sent.</p>
-        <div class="drop" id="zipdrop">Drop Slack export .zip or click<input type="file" id="zipfile" accept=".zip" hidden></div>
+      <details class="more"><summary>Import a Slack export (.zip) instead</summary>
+        <p class="d" style="margin-top:4px">Workspace admins can export data from Slack under Settings → Import/Export data. The archive is read in your browser; only messages are uploaded.</p>
+        <div class="drop" id="zipdrop">Drop Slack export, or click to browse<input type="file" id="zipfile" accept=".zip" hidden></div>
         <div class="res" id="zip-res"></div>
       </details>
     </div>
 
     <div class="sec card">
-      <h4>Post updates to a channel</h4>
-      <p class="d">Paste an incoming-webhook URL from <b>Slack</b>, <b>Discord</b>, <b>Microsoft Teams</b> or <b>Google Chat</b>. The brain announces new and replaced decisions there, and every answer, PRD and sprint plan gets a <b>Send to channel</b> button.</p>
-      <input id="c-notify" placeholder="https://hooks.slack.com/services/... or Discord / Teams / Google Chat webhook" autocomplete="off">
-      <label class="muted" style="display:flex;gap:8px;align-items:center;font-size:13px;margin:10px 0"><input type="checkbox" id="c-decisions" style="width:auto" checked> Announce new and replaced decisions</label>
-      <div style="display:flex;gap:8px"><button class="btn" id="c-save-notify">Save</button><button class="ghost" id="c-test">Send a test message</button></div>
+      <h4>Channel notifications</h4>
+      <p class="d">An incoming-webhook URL from Slack, Discord, Microsoft Teams or Google Chat. New and replaced decisions are posted there, and answers and documents can be shared to it.</p>
+      <input id="c-notify" placeholder="https://hooks.slack.com/services/..." autocomplete="off">
+      <label class="muted" style="display:flex;gap:8px;align-items:center;font-size:13px;margin:12px 0"><input type="checkbox" id="c-decisions" style="width:auto" checked> Post new and replaced decisions</label>
+      <div style="display:flex;gap:8px"><button class="btn" id="c-save-notify">Save</button><button class="ghost" id="c-test">Send test message</button></div>
       <div class="res" id="c-notify-res"></div>
     </div>
 
     <div class="sec card">
-      <h4>Jira, Linear, GitHub, Zapier &amp; more</h4>
-      <p class="d">Point any tool's webhook at your private URL. Issues become tickets, comments become messages, and decisions are detected automatically.</p>
-      <div style="display:flex;gap:8px"><input id="c-inbound" readonly><button class="ghost" id="c-copy-inbound">Copy</button></div>
-      <ul class="muted" style="font-size:12.5px;line-height:1.7;padding-left:18px;margin:10px 0 6px">
-        <li><b>Jira:</b> Settings &rarr; System &rarr; Webhooks &rarr; Create, events: Issue created/updated, Comment created.</li>
-        <li><b>Linear:</b> Settings &rarr; API &rarr; Webhooks, resources: Issues and Comments.</li>
-        <li><b>GitHub:</b> repo Settings &rarr; Webhooks, content type <span class="mono">application/json</span>, events: Issues, Issue comments, Pull requests.</li>
-        <li><b>Microsoft Teams, Notion, Google Docs, email and others:</b> use Zapier, Make or n8n to POST <span class="mono">{"text": "...", "author": "...", "channel": "..."}</span>.</li>
+      <h4>Jira, Linear, GitHub and other tools</h4>
+      <p class="d">Send webhooks to this private endpoint. Issues are stored as tickets and comments as messages; decisions are detected automatically.</p>
+      <div style="display:flex;gap:8px"><input id="c-inbound" readonly class="mono" style="font-size:12px"><button class="ghost" id="c-copy-inbound">Copy</button></div>
+      <ul class="muted" style="font-size:12.5px;line-height:1.75;padding-left:18px;margin:12px 0 10px">
+        <li><b>Jira:</b> Settings → System → Webhooks. Events: issue created/updated, comment created.</li>
+        <li><b>Linear:</b> Settings → API → Webhooks. Resources: Issues, Comments.</li>
+        <li><b>GitHub:</b> Repository settings → Webhooks, content type <span class="mono">application/json</span>.</li>
+        <li><b>Microsoft Teams, Notion, email:</b> via Zapier, Make or n8n, posting <span class="mono">{"text", "author", "channel"}</span>.</li>
       </ul>
-      <button class="ghost" id="c-rotate">Make a new URL (the old one stops working)</button>
+      <button class="ghost" id="c-rotate">Regenerate URL</button>
       <div class="res" id="c-in-res"></div>
     </div>
   </div>
 </aside>
 
-<div class="gate" id="gate"><div class="card" style="width:min(440px,100%)">
-  <h3 style="margin:0 0 6px">Private workspace</h3>
-  <p class="muted" style="margin:0 0 12px;line-height:1.5">Paste the private link (or key) you got when this workspace was created.</p>
-  <input id="gate-key" placeholder="Private link or key">
+<div class="gate" id="gate"><div class="card" style="width:min(420px,100%);padding:22px">
+  <h3 style="margin:0 0 6px;font-size:16px">Private workspace</h3>
+  <p class="muted" style="margin:0 0 14px;line-height:1.55;font-size:13.5px">Enter the access link or key you received when this workspace was created.</p>
+  <input id="gate-key" placeholder="Access link or key">
   <div class="gap"></div>
-  <div style="display:flex;gap:8px"><button class="btn" id="gate-go">Open</button><a class="ghost" href="/">Home</a></div>
+  <div style="display:flex;gap:8px"><button class="btn" id="gate-go">Continue</button><a class="ghost" href="/">Home</a></div>
   <div class="res err" id="gate-res"></div>
 </div></div>
-<div class="modal" id="mcpmodal"><div class="card" style="width:min(620px,100%)">
-  <h3 style="margin:0 0 6px">Use this brain from Claude Desktop or Cursor</h3>
-  <p class="muted" style="margin:0 0 10px;line-height:1.5;font-size:13px">Download <span class="mono">mcp_server.py</span> from the project repo, then add this to your Claude Desktop config (<span class="mono">claude_desktop_config.json</span>). Claude can then ask your company brain, write PRDs and sprint plans, and add notes. The config contains your private key, so keep it private.</p>
+
+<div class="modal" id="mcpmodal"><div class="card" style="width:min(620px,100%);padding:22px">
+  <h3 style="margin:0 0 6px;font-size:16px">Use with Claude Desktop or Cursor</h3>
+  <p class="muted" style="margin:0 0 12px;line-height:1.55;font-size:13px">Download <span class="mono">mcp_server.py</span> from the repository and add this entry to <span class="mono">claude_desktop_config.json</span>. It contains your access key; keep it private.</p>
   <pre id="mcpcfg"></pre>
-  <div style="display:flex;gap:8px"><button class="btn" id="mcpcopy">Copy config</button><button class="ghost" id="mcpclose">Close</button></div>
+  <div style="display:flex;gap:8px"><button class="btn" id="mcpcopy">Copy configuration</button><button class="ghost" id="mcpclose">Close</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
 <script src="/static/app.js"></script>

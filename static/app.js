@@ -28,40 +28,68 @@ function toast(html) { $('toast').innerHTML = html; $('toast').classList.add('sh
 // ---------- map ----------
 const COLORS = { Person: css('--person'), Team: css('--team'), Project: css('--project'), System: css('--system'),
   doc: css('--doc'), ticket: css('--ticket'), message: css('--message'), meeting: css('--meeting'), Decision: css('--decision') };
-const SHAPES = { Person: 'dot', Team: 'hexagon', Project: 'diamond', System: 'square', Source: 'dot', Decision: 'star' };
-const SIZES = { Person: 16, Team: 18, Project: 18, System: 14, Source: 8, Decision: 15 };
+const SHAPES = { Person: 'dot', Team: 'dot', Project: 'dot', System: 'dot', Source: 'dot', Decision: 'diamond' };
+const SIZES = { Person: 8, Team: 9, Project: 10, System: 8, Source: 4, Decision: 7 };
+const MAP = { label: css('--map-label'), label2: css('--map-label2'), dim: css('--map-dim'), edge: css('--map-edge'),
+  edgeOn: css('--map-edge-on'), ring: css('--map-ring'), bg: css('--map-bg'), outdated: css('--outdated') };
 let nodes, edges, network, raw = { nodes: [], edges: [] }, highlightSet = null, citedSet = new Set();
-const colorOf = n => (n.type === 'Decision' && n.status === 'superseded') ? '#55556a' : (n.type === 'Source' ? COLORS[n.kind] : COLORS[n.type]);
+const colorOf = n => (n.type === 'Decision' && n.status === 'superseded') ? MAP.outdated : (n.type === 'Source' ? COLORS[n.kind] : COLORS[n.type]);
 function nodeView(n) {
   const c = colorOf(n), dim = highlightSet && !highlightSet.has(n.id), cited = citedSet.has(n.id);
-  return { id: n.id, label: (n.type === 'Source' || n.type === 'Decision') ? n.id : n.name, shape: SHAPES[n.type] || 'dot',
-    size: (SIZES[n.type] || 10) * (cited ? 1.6 : 1),
-    color: { background: c, border: cited ? '#fff' : c, highlight: { background: c, border: '#fff' }, hover: { background: c, border: '#fff' } },
-    borderWidth: cited ? 3 : 1, opacity: dim ? 0.12 : 1,
-    font: { color: dim ? '#3a3a4a' : (n.type === 'Source' ? '#9a9ab0' : '#ececf4'), size: n.type === 'Source' ? 10 : 13, face: 'Inter', strokeWidth: 0 } };
+  const small = n.type === 'Source' || n.type === 'Decision';
+  const showLabel = !small || (highlightSet && highlightSet.has(n.id));
+  return { id: n.id, label: showLabel ? (small ? n.id : n.name) : undefined, shape: SHAPES[n.type] || 'dot',
+    size: (SIZES[n.type] || 6) * (cited ? 1.5 : 1),
+    color: { background: c, border: cited ? MAP.ring : c, highlight: { background: c, border: MAP.ring }, hover: { background: c, border: MAP.ring } },
+    borderWidth: cited ? 2 : 1, opacity: dim ? 0.18 : 1,
+    font: { color: dim ? MAP.dim : (small ? MAP.label2 : MAP.label), size: small ? 10 : 12, face: 'Inter', strokeWidth: 3, strokeColor: MAP.bg, vadjust: -2 } };
 }
 function edgeView(e, i) {
   const on = !highlightSet || (highlightSet.has(e.source) && highlightSet.has(e.target));
-  return { id: i, from: e.source, to: e.target, label: on && highlightSet ? e.rel.toLowerCase().replace(/_/g, ' ') : '',
-    arrows: { to: { enabled: true, scaleFactor: .4 } },
-    color: { color: on ? (highlightSet ? '#a99dffcc' : '#ffffff22') : '#ffffff08', highlight: '#a99dff' },
-    width: on && highlightSet ? 1.6 : .7, dashes: e.rel === 'SUPERSEDES',
-    font: { color: '#a99dff', size: 9, strokeWidth: 0, face: 'Inter', background: '#0b0b12' }, smooth: { type: 'continuous' } };
+  return { id: i, from: e.source, to: e.target, title: e.rel.toLowerCase().replace(/_/g, ' '),
+    arrows: { to: { enabled: !!(on && highlightSet), scaleFactor: .35 } },
+    color: { color: on && highlightSet ? MAP.edgeOn : MAP.edge, highlight: MAP.edgeOn, opacity: on ? 1 : .35 },
+    width: on && highlightSet ? 1.3 : .6, dashes: e.rel === 'SUPERSEDES',
+    font: { color: MAP.label2, size: 9, strokeWidth: 3, strokeColor: MAP.bg, face: 'Inter' }, smooth: false };
 }
-let mapMode = 'full';
+let mapMode = 'full', mapStable = false;
+// vis-network can move the view while its layout finishes, so (re)apply the zoom a few times.
+let fitTimers = [];
+function scheduleFit() {
+  fitTimers.forEach(clearTimeout);
+  const run = () => { if (!network) return; if (highlightSet) fitTo([...highlightSet]); else network.fit({ animation: false }); };
+  fitTimers = [60, 450, 1200].map(ms => setTimeout(run, ms));
+}
+function fitTo(keys) {
+  // Zoom to the bounding box of the given nodes (vis-network's own fit does not zoom in reliably).
+  const pos = Object.values(network.getPositions(keys.filter(k => nodes.get(k))));
+  if (!pos.length) return;
+  const xs = pos.map(p => p.x), ys = pos.map(p => p.y);
+  const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  const el = $('graph'), pad = 140;
+  const scale = Math.min(1.3, el.clientWidth / (x1 - x0 + pad), el.clientHeight / (y1 - y0 + pad));
+  network.moveTo({ position: { x: (x0 + x1) / 2, y: (y0 + y1) / 2 }, scale, animation: { duration: 500, easingFunction: 'easeInOutQuad' } });
+}
 async function loadGraph(data) {
   raw = data || await api('/graph');
   mapMode = data ? 'focus' : 'full';
-  $('stats').textContent = !raw.nodes.length ? 'The map fills up as you add info' :
-    data ? `Showing ${raw.nodes.length} connected things · Show everything to go back` :
-    raw.truncated ? `Showing ${raw.nodes.length} of ${raw.total} things (newest) · click any dot` :
-    `${raw.nodes.length} things, ${raw.edges.length} connections · click any dot`;
+  $('stats').textContent = !raw.nodes.length ? 'Empty' :
+    data ? `${raw.nodes.length} related nodes` :
+    raw.truncated ? `${raw.nodes.length} of ${raw.total} nodes` :
+    `${raw.nodes.length} nodes · ${raw.edges.length} relationships`;
   if (network) { network.destroy(); network = null; }
+  mapStable = false;
   nodes = new vis.DataSet(raw.nodes.map(nodeView));
   edges = new vis.DataSet(raw.edges.map(edgeView));
   network = new vis.Network($('graph'), { nodes, edges }, {
-    physics: { solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -55, springLength: 90, avoidOverlap: .4 }, stabilization: { iterations: 250 } },
+    physics: { solver: 'forceAtlas2Based', forceAtlas2Based: { gravitationalConstant: -45, springLength: 80, avoidOverlap: .6 }, stabilization: { iterations: 300, fit: false } },
     interaction: { hover: true }, layout: { improvedLayout: true } });
+  network.once('stabilizationIterationsDone', () => {
+    network.setOptions({ physics: false });  // settle once, then stay still
+    mapStable = true;
+    // setOptions cancels running view animations, so zoom on the next tick
+    scheduleFit();
+  });
   network.on('click', p => p.nodes.length ? inspect(p.nodes[0]) : ($('inspect').style.display = 'none'));
   if (highlightSet) focusOn([...highlightSet]);
 }
@@ -72,8 +100,7 @@ async function focusOn(keys) {
     if (missing.length) { try { highlightSet = new Set(keys); await loadGraph(await api('/graph/focus', { keys: keys.slice(0, 400) })); } catch (e) {} }
   }
   highlightSet = new Set(keys); restyle();
-  const present = keys.filter(k => nodes.get(k));
-  if (present.length) network.fit({ nodes: present, animation: { duration: 700, easingFunction: 'easeInOutQuad' } });
+  if (mapStable) scheduleFit();  // otherwise the stabilisation handler does it once the layout settles
 }
 function inspect(key) {
   const n = raw.nodes.find(x => x.id === key); if (!n) return;
@@ -116,12 +143,12 @@ function md(text) {
 }
 function sourceList(cits) {
   return cits.map(c => {
-    const col = c.label === 'Decision' ? COLORS.Decision : COLORS[c.kind];
-    return `<div class="src" data-k="${c.key}"><div class="t"><i class="dot" style="background:${col}"></i><b>${esc(c.title)}</b>
-      ${c.status === 'superseded' ? '<span class="old">outdated</span>' : ''}<span class="m">${esc(c.author || c.kind)} · ${esc(c.date || '')}</span></div>
+    const kind = { doc: 'Document', ticket: 'Ticket', message: 'Message', meeting: 'Meeting', decision: 'Decision' }[c.kind] || c.kind;
+    return `<div class="src" data-k="${c.key}"><div class="t"><span class="k">${esc(c.key)}</span><b>${esc(c.title)}</b>
+      ${c.status === 'superseded' ? '<span class="old">Outdated</span>' : ''}<span class="m">${esc(kind)}${c.author ? ' · ' + esc(c.author) : ''} · ${esc(c.date || '')}</span></div>
       <div class="x">${esc(c.text)}</div>
       <div class="acts">${c.label === 'Decision' ? `<button class="mini" data-act="nd" data-key="${c.key}">Not a decision</button>`
-        : `<button class="mini" data-act="del" data-key="${c.key}">Remove this item</button>`}</div></div>`;
+        : `<button class="mini" data-act="del" data-key="${c.key}">Remove</button>`}</div></div>`;
   }).join('');
 }
 document.addEventListener('click', async e => {
@@ -146,18 +173,22 @@ document.addEventListener('click', async e => {
   if (nodes && nodes.get(k)) { network.selectNodes([k]); network.focus(k, { scale: 1.3, animation: { duration: 500 } }); inspect(k); }
 });
 
-// ---------- tabs + menu ----------
+// ---------- navigation ----------
+const TITLES = { ask: 'Ask', write: 'Documents' };
 function showView(v) {
-  document.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  document.querySelectorAll('.nav button[data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === v));
+  $('nav-risks').classList.remove('on');
   document.querySelectorAll('.view').forEach(x => x.classList.toggle('on', x.id === 'v-' + v));
+  $('title').textContent = TITLES[v];
 }
-document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => showView(b.dataset.view));
-$('menubtn').onclick = e => { e.stopPropagation(); $('menu').classList.toggle('open'); };
-document.addEventListener('click', () => $('menu').classList.remove('open'));
+document.querySelectorAll('.nav button[data-view]').forEach(b => b.onclick = () => showView(b.dataset.view));
+$('nav-risks').onclick = () => { showView('ask'); $('nav-risks').classList.add('on'); document.querySelector('.nav button[data-view="ask"]').classList.remove('on'); ask('Where are our biggest knowledge risks?'); };
+$('mapbtn').onclick = () => { $('shell').classList.add('map'); setTimeout(() => network && network.fit(), 50); };
+$('mapclose').onclick = () => $('shell').classList.remove('map');
 
 // ---------- ask ----------
-const TOOL_TEXT = { search_knowledge: 'Searched docs, tickets and chats', entity_profile: 'Looked up', who_knows: 'Checked who has worked on',
-  decision_trail: 'Followed the decision history of', run_cypher: 'Ran a custom map query' };
+const TOOL_TEXT = { search_knowledge: 'Full-text search', entity_profile: 'Entity lookup', who_knows: 'Expertise ranking',
+  decision_trail: 'Decision history', run_cypher: 'Cypher query', company_insights: 'Graph algorithms' };
 async function askStream(q, onStep) {
   const resp = await fetch(`/api/w/${SLUG}/ask/stream`, { method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Workspace-Key': getKey() }, body: JSON.stringify({ question: q }) });
@@ -178,11 +209,11 @@ async function askStream(q, onStep) {
   if (!final) throw new Error('The connection was interrupted. Please try again.');
   return final;
 }
-const stepText = s => `${TOOL_TEXT[s.tool] || s.tool}: <i>${esc(String(Object.values(s.args)[0]).slice(0, 80))}</i> (${s.found} found)`;
+const stepText = s => `${TOOL_TEXT[s.tool] || s.tool} <span style="color:var(--dim)">— ${esc(String(Object.values(s.args)[0]).slice(0, 70))} · ${s.found} nodes</span>`;
 async function ask(q) {
   if (!q.trim()) return;
   $('q').value = q; $('go').disabled = true;
-  $('out').innerHTML = `<div class="card"><div><span class="spin"></span>Looking through the company map&hellip;</div><ol class="live muted" id="livesteps" style="margin:10px 0 0;padding-left:20px;line-height:1.7;font-size:13px"></ol></div>`;
+  $('out').innerHTML = `<div class="card"><div class="muted" style="font-size:13px"><span class="spin"></span>Searching the knowledge graph&hellip;</div><ol class="livesteps" id="livesteps"></ol></div>`;
   const seen = [];
   let r;
   try {
@@ -195,8 +226,8 @@ async function ask(q) {
   citedSet = new Set(r.cited);
   const steps = r.trace.map(s => `<li>${stepText(s)}</li>`).join('');
   $('out').innerHTML = `<div class="card answer">${md(r.answer)}
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px"><details class="how" style="margin:0"><summary>How it found this</summary><ol>${steps || '<li>Answered directly</li>'}</ol></details>${shareBtn()}</div></div>
-    ${r.citations.length ? `<div class="h">Sources</div>${sourceList(r.citations)}` : ''}`;
+      <div class="ansfoot"><details class="how"><summary>${r.trace.length} graph ${r.trace.length === 1 ? 'query' : 'queries'} · ${r.citations.length} sources${r.mode === 'claude' ? ' · Claude' : ''}</summary><ol>${steps || '<li>Answered directly</li>'}</ol></details>${shareBtn()}</div></div>
+    ${r.citations.length ? `<div class="h">Sources (${r.citations.length})</div>${sourceList(r.citations)}` : ''}`;
   const sb = $('out').querySelector('[data-share]');
   if (sb) sb.onclick = () => shareToChannel(`Q: ${q}`, r.answer + (r.citations.length ? '\n\nSources:\n' + r.citations.slice(0, 6).map(c => `- [${c.key}] ${c.title}`).join('\n') : ''));
   focusOn(r.highlight);
@@ -207,19 +238,18 @@ $('q').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) 
 function welcome() {
   const c = META.counts, people = c.Person || 0, items = c.Source || 0;
   if (META.workspace.demo || items) {
-    $('out').innerHTML = `<div class="card steps">
-      <div class="s"><span class="n">1</span><div><b>Ask a question</b> in plain words, or tap one of the examples above.</div></div>
-      <div class="s"><span class="n">2</span><div><b>Check the proof.</b> Every answer links to the original doc, ticket or message, and the map highlights the connections it used.</div></div>
-      <div class="s"><span class="n">3</span><div><b>Need a plan?</b> Open <a href="#" onclick="showView('write');return false" style="color:var(--accent2)">Write a PRD or sprint plan</a>.</div></div></div>`;
+    $('out').innerHTML = `<div class="card" style="color:var(--muted);font-size:13.5px;line-height:1.6">
+      <div style="color:var(--ink);font-weight:500;margin-bottom:4px">${items} sources · ${people} people · ${c.Project || 0} projects · ${c.Decision || 0} decisions</div>
+      Answers are drawn from the knowledge graph and cite the documents, tickets and messages they come from. Use <a href="#" onclick="showView('write');return false">Documents</a> to generate a PRD or sprint plan.</div>`;
     return;
   }
   $('out').innerHTML = `<div class="card steps">
-    <p style="margin:0 0 14px;font-weight:600">Set up ${esc(META.workspace.name)}</p>
-    <div class="s ${people ? 'done' : ''}"><span class="n">${people ? '&#10003;' : '1'}</span><div><b>Add your team &amp; projects</b> so the brain knows who's who.</div></div>
-    <div class="s"><span class="n">2</span><div><b>Add info:</b> paste docs, notes, tickets or chats, upload files, or import a GitHub repo.</div></div>
-    <div class="s"><span class="n">3</span><div><b>Ask questions</b> and <b>write PRDs and sprint plans</b> from your own data.</div></div>
-    <button class="btn" onclick="openDrawer(${people ? 'false' : 'true'})">${people ? 'Add info' : 'Add team &amp; projects'}</button>
-    <p class="muted" style="font-size:12.5px;margin:12px 0 0">Keep your private link safe (menu &middot;&middot;&middot; &rarr; Copy private link). It's the only way back in.</p></div>`;
+    <div style="font-weight:600;margin-bottom:4px">Set up ${esc(META.workspace.name)}</div>
+    <div class="s ${people ? 'done' : ''}"><span class="n">${people ? '&#10003;' : '1'}</span><div><b>Add people and projects</b><br>Who works here, which team owns what, and the systems they use.</div></div>
+    <div class="s"><span class="n">2</span><div><b>Add knowledge</b><br>Paste or upload documents, tickets and messages, import a GitHub repository, or connect Slack.</div></div>
+    <div class="s"><span class="n">3</span><div><b>Ask and plan</b><br>Get cited answers and generate PRDs and sprint plans from your own data.</div></div>
+    <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" onclick="openDrawer(${people ? 'false' : 'true'})">${people ? 'Add knowledge' : 'Add people and projects'}</button><button class="ghost" onclick="openConnections()">Connect Slack</button></div>
+    <p class="muted" style="font-size:12.5px;margin:14px 0 0">Save your access link (sidebar → Copy access link). It is the only way back into this workspace.</p></div>`;
 }
 
 // ---------- write PRD / sprint ----------
@@ -228,22 +258,22 @@ document.querySelectorAll('#kind button').forEach(b => b.onclick = () => {
   KIND = b.dataset.k;
   document.querySelectorAll('#kind button').forEach(x => x.classList.toggle('on', x === b));
   $('g-weeks-wrap').style.display = KIND === 'sprint' ? '' : 'none';
-  $('g-goal-label').textContent = KIND === 'sprint' ? 'Sprint goal (optional)' : 'What do you want to build? (optional)';
-  $('g-goal').placeholder = KIND === 'sprint' ? 'Leave empty to let the brain pick from blockers and open work' : 'e.g. Finish the Keycloak migration';
-  $('g-go').textContent = KIND === 'sprint' ? 'Write sprint plan' : 'Write PRD';
+  $('g-goal-label').textContent = KIND === 'sprint' ? 'Sprint goal (optional)' : 'Goal (optional)';
+  $('g-goal').placeholder = KIND === 'sprint' ? 'Derived from blockers and open work if left empty' : 'e.g. Finish the Keycloak migration';
+  $('g-go').textContent = KIND === 'sprint' ? 'Generate sprint plan' : 'Generate PRD';
 });
 let lastDoc = null;
 $('g-go').onclick = async () => {
   if (!$('g-project').value) { $('gen').innerHTML = '<div class="card">Add a project first (+ Add info &rarr; Your team &amp; projects).</div>'; return; }
   $('g-go').disabled = true;
-  $('gen').innerHTML = `<div class="card"><span class="spin"></span>Reading decisions, tickets and experts, then writing&hellip;</div>`;
+  $('gen').innerHTML = `<div class="card muted" style="font-size:13px"><span class="spin"></span>Collecting decisions, tickets and expertise&hellip;</div>`;
   try {
     const r = await api('/generate', { kind: KIND, project: $('g-project').value, goal: $('g-goal').value, weeks: +$('g-weeks').value });
     lastDoc = r;
     citedSet = new Set(r.cited);
     $('gen').innerHTML = `<div class="doctools"><button class="ghost" id="d-copy">Copy</button><button class="ghost" id="d-md">Download .md</button><button class="ghost" id="d-pdf">Save as PDF</button>${shareBtn()}</div>
-      <div class="card doc">${md(r.markdown)}<div class="foot">${r.mode === 'claude' ? 'Written by Claude from' : 'Assembled from'} ${r.citations.length} sources in the company map.</div></div>
-      <div id="gensrc">${r.citations.length ? `<div class="h">Sources used</div>${sourceList(r.citations)}` : ''}</div>`;
+      <div class="card doc">${md(r.markdown)}<div class="foot">${r.mode === 'claude' ? 'Written by Claude from' : 'Generated from'} ${r.citations.length} sources in the knowledge graph.</div></div>
+      <div id="gensrc">${r.citations.length ? `<div class="h">Sources (${r.citations.length})</div>${sourceList(r.citations)}` : ''}</div>`;
     $('d-copy').onclick = async () => { try { await navigator.clipboard.writeText(r.markdown); toast('Copied as Markdown.'); } catch (e) { toast('Copy failed. Use Download instead.'); } };
     $('d-md').onclick = () => download(`${KIND === 'prd' ? 'PRD' : 'Sprint plan'} - ${r.title}.md`, r.markdown, 'text/markdown');
     $('d-pdf').onclick = () => window.print();
@@ -267,7 +297,7 @@ function setRes(id, html, ok) { $(id).innerHTML = html; $(id).className = 'res '
 function showChange(r) {
   let msg = `Added <b>${r.source}</b>, connected to ${r.mentions.length} people/projects/tools.`;
   if (r.decision) msg += ` New decision: <b>${esc(r.decision.title)}</b>.`;
-  if (r.superseded.length) msg += ` <span style="color:#fca5a5">Marked ${r.superseded.join(', ')} as outdated.</span>`;
+  if (r.superseded.length) msg += ` <span style="color:var(--bad)">Marked ${r.superseded.join(', ')} as outdated.</span>`;
   return msg;
 }
 $('k-save').onclick = async () => {
@@ -405,7 +435,7 @@ async function openConnections() {
     ? `Connected. Events URL: <span class="mono">${esc(CONN.slack_events_url)}</span>` : '';
 }
 function closeConnections() { $('cdrawer').classList.remove('open'); $('overlay').classList.remove('open'); }
-$('connect').onclick = openConnections; $('menu-connect').onclick = openConnections; $('cclose').onclick = closeConnections;
+$('connect').onclick = openConnections; $('cclose').onclick = closeConnections;
 $('overlay').addEventListener('click', closeConnections);
 async function saveConn(body, resId, okMsg) {
   try { CONN = await api('/connections', body); setRes(resId, okMsg, true); await refresh(); openConnections(); }
@@ -524,10 +554,13 @@ async function refresh() {
   try { META = await api('/meta'); } catch (e) { if (e.message !== 'locked') $('out').innerHTML = `<div class="card">${esc(e.message)}</div>`; return false; }
   const m = META;
   document.title = m.workspace.name + ' · Company Brain';
-  $('wsname').innerHTML = esc(m.workspace.name.replace(' (demo)', '')) + (m.workspace.demo ? '<span class="tag">demo</span>' : '');
+  $('wsname').innerHTML = esc(m.workspace.name.replace(' (demo)', '')) + (m.workspace.demo ? '<span class="tag">Demo</span>' : '');
+  $('mode').textContent = (m.claude ? 'Claude' : 'Graph-only') + ' · ' + m.backend;
+  $('mode').title = m.claude ? 'Answers are planned and written by Claude using graph tools' : 'Answers come directly from graph queries (no AI key configured)';
   $('share').style.display = m.workspace.demo ? 'none' : '';
-  $('try').innerHTML = m.questions.length ? '<span>Try:</span>' + m.questions.slice(0, 5).map(q => `<button class="chip">${esc(q)}</button>`).join('') : '';
-  $('try').querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.textContent));
+  $('try').innerHTML = m.questions.length ? '<div class="lbl">Suggested questions</div>' + m.questions.slice(0, 5)
+    .map(q => `<button class="chip"><svg class="i"><use href="#i-arrow"/></svg><span>${esc(q)}</span></button>`).join('') : '';
+  $('try').querySelectorAll('.chip').forEach(b => b.onclick = () => ask(b.querySelector('span').textContent));
   $('people').innerHTML = m.people.map(p => `<option value="${esc(p.name)}">${esc(p.role)}</option>`).join('');
   const sel = $('g-project').value;
   $('g-project').innerHTML = m.projects.length ? m.projects.map(p => `<option value="${p.key}">${esc(p.name)}</option>`).join('') : '<option value="">No projects yet</option>';

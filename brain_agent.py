@@ -145,8 +145,8 @@ def _offline_answer(question: str) -> str:
         if "blocked_by" in r and r["blocked_by"]:
             b = r["blocked_by"][0]
             p = r["profile"][0]
-            return (f"{r['entity']['name']} ({p['status']}, led by {p['lead']}) is blocked by **{b['key']}: "
-                    f"{b['title']}** ({b['status']}) [{b['key']}] [{b['blocks']}]. "
+            return (f"{r['entity']['name']} ({p['status'].replace('_', ' ')}, led by {p['lead']}) is blocked by **{b['key']}: "
+                    f"{b['title']}** ({b['status'].replace('_', ' ')}) [{b['key']}] [{b['blocks']}]. "
                     f"{b['assignee']} is assigned and can unblock it.")
     if re.search(r"\b(why|decid|decision|chose|choose|changed|change|history)", q):
         r = json.loads(T.decision_trail(question))
