@@ -99,6 +99,31 @@ Secrets are stored on the workspace's registry node, are never returned to the b
 
 It needs `pip install mcp`, and works with mcp 1.x and 2.x.
 
+## Self-host or run offline (Docker)
+
+Hivemind runs entirely on your own machine or server. It needs no cloud accounts, and nothing is loaded from the internet at runtime: fonts, the graph library and photos are bundled in `static/vendor` and `static/img`.
+
+```bash
+docker compose up -d          # FalkorDB + Hivemind
+open http://localhost:8000    # app; FalkorDB's own browser is on http://localhost:3000
+```
+
+- Data is stored in the `falkordb-data` Docker volume (append-only file, so it survives restarts). Stop with `docker compose down`; add `-v` to also delete the data.
+- Optional settings go in a `.env` file next to `docker-compose.yml`: `ANTHROPIC_API_KEY` (AI answers), `HIVEMIND_PORT` (default 8000), `PUBLIC_URL` (for Slack/webhook URLs behind a reverse proxy).
+- Without internet, everything works in graph-only mode. Only the optional features that talk to outside services need a connection: Claude, GitHub import, Slack, and chat notifications.
+
+**Machines with no internet at all (air-gapped):**
+
+```bash
+./scripts/package_offline.sh   # on a machine with Docker + internet -> offline/hivemind-offline.tar.gz
+# copy the file over, then on the offline machine:
+tar -xzf hivemind-offline.tar.gz && cd bundle && ./install.sh
+```
+
+The archive contains both Docker images, the compose file and an installer that loads the images and starts Hivemind.
+
+**macOS without Docker:** `./scripts/run_local.sh` uses embedded FalkorDB. It needs internet once to install Python packages, then runs offline.
+
 ## Deploy online (FalkorDB Cloud + Render, both free)
 
 1. **FalkorDB Cloud:** create a free instance at https://app.falkordb.cloud, then copy its host, port, username and password.
@@ -134,7 +159,8 @@ Deep links: `/w/demo?ask=Who owns checkout?` or `/w/demo?write=sprint&project=pr
 | `workspaces.py` | Company registration and access keys (hashed) |
 | `mcp_server.py` | MCP server for Claude Desktop / Cursor |
 | `company_data.py` | Demo company "Lumen Pay" (fictional) |
-| `static/` | `landing.html` (home), `index.html` + `app.js` (workspace app) |
+| `static/` | `landing.html` (home), `index.html` + `app.js` (workspace app), `vendor/` (bundled fonts, vis-network, JSZip), `img/` (photos) |
+| `Dockerfile`, `docker-compose.yml`, `scripts/` | Self-hosting, offline packaging and local run scripts |
 | `eval_qa.py`, `tests/` | Accuracy check and tests |
 
 ## Limitations (honest)

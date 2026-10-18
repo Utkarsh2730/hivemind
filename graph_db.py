@@ -14,7 +14,7 @@ REGISTRY_GRAPH = "cb_registry"
 
 
 def backend() -> str:
-    return "FalkorDB Cloud" if os.environ.get("FALKORDB_HOST") else "embedded FalkorDB"
+    return "FalkorDB" if os.environ.get("FALKORDB_HOST") else "embedded FalkorDB"
 
 
 def get_db():

@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+data/
+*.db
+.env
+.git/
+.claude/
+docs/
+tests/
+track1_blast_radius/
+inventorysync.zip
+offline/
+*.tar.gz

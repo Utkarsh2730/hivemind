@@ -1,0 +1,42 @@
+# Self-hosted Hivemind: the app + FalkorDB, no cloud accounts needed.
+#   docker compose up -d        then open http://localhost:8000
+# Data lives in the "falkordb-data" volume and survives restarts.
+# Optional: put ANTHROPIC_API_KEY=... in a .env file next to this one for AI answers.
+
+services:
+  falkordb:
+    image: falkordb/falkordb:latest
+    restart: unless-stopped
+    environment:
+      # append-only file so every write is persisted to the volume
+      REDIS_ARGS: "--appendonly yes --appendfsync everysec"
+    volumes:
+      - falkordb-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    # FalkorDB's own graph browser (optional): http://localhost:3000
+    ports:
+      - "127.0.0.1:3000:3000"
+
+  hivemind:
+    build: .
+    image: hivemind:latest
+    restart: unless-stopped
+    depends_on:
+      falkordb:
+        condition: service_healthy
+    environment:
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: "6379"
+      PORT: "8000"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      PUBLIC_URL: ${PUBLIC_URL:-}
+    ports:
+      - "${HIVEMIND_PORT:-8000}:8000"
+
+volumes:
+  falkordb-data:
