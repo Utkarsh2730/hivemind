@@ -18,7 +18,7 @@ It answers who owns what, who knows what and why decisions were made — with so
 
 **WeMakeDevs × FalkorDB Hackathon · Track 03 — Company Brain**
 
-[For judges](#for-judges) · [Getting started](#getting-started) · [Features](#features) · [Architecture](#architecture) · [How we use FalkorDB](#how-we-use-falkordb) · [Run offline](#run-offline-and-self-host)
+[For judges](#for-judges) · [Key Cypher queries](#key-cypher-queries) · [Getting started](#getting-started) · [Features](#features) · [Architecture](#architecture) · [How we use FalkorDB](#how-we-use-falkordb) · [Run offline](#run-offline-and-self-host)
 
 </div>
 
@@ -158,6 +158,66 @@ graph LR
 | **`algo.pageRank`** | Central topics — the projects and systems most work depends on. |
 | **`algo.WCC`** | Unconnected knowledge — items linked to no person or project. |
 | **Read-only queries** | Every agent query runs through `GRAPH.RO_QUERY`, and write keywords are rejected, so the model cannot modify the graph. |
+
+## Key Cypher queries
+
+These queries are the product's core logic (from `brain_tools.py`, `brain_insights.py`, `brain_ingest.py` and `brain_docs.py`). Parameters such as `$k` are passed in, and every agent query runs read-only.
+
+**Who actually knows a system** — evidence-weighted expertise (`who_knows`):
+```cypher
+// authored about it (weight 3)
+MATCH (p:Person)-[:AUTHORED]->(s:Source)-[:MENTIONS]->(e) WHERE e.key IN $k RETURN p.key AS person, s.key AS ev
+// assigned work on it (weight 2)
+MATCH (s:Source)-[:ASSIGNED_TO]->(p:Person) MATCH (s)-[:MENTIONS]->(e) WHERE e.key IN $k RETURN p.key AS person, s.key AS ev
+// named or thanked by colleagues in that context (weight 2)
+MATCH (a:Person)-[:AUTHORED]->(s:Source)-[:MENTIONS]->(p:Person), (s)-[:MENTIONS]->(e)
+WHERE e.key IN $k AND a <> p RETURN p.key AS person, s.key AS ev
+// made decisions about it (weight 2)
+MATCH (p:Person)-[:MADE]->(d:Decision)-[:AFFECTS]->(e) WHERE e.key IN $k RETURN p.key AS person, d.key AS ev
+// formal owners, shown for contrast
+MATCH (l:Person)-[:LEADS]->(p:Project) WHERE p.key IN $k OR (p)-[:USES]->(:System {key: $k[0]}) RETURN l.name, p.name
+```
+
+**Decision trail** — where a decision was made, by whom, and what replaced what (`decision_trail`):
+```cypher
+MATCH (d:Decision)-[:AFFECTS]->(e) WHERE e.key IN $k RETURN DISTINCT d.key
+MATCH (p:Person)-[:MADE]->(:Decision {key: $k}) RETURN p.name, p.role
+MATCH (:Decision {key: $k})-[:DECIDED_IN]->(s) OPTIONAL MATCH (a)-[:AUTHORED]->(s) RETURN s.key, s.title, a.name
+MATCH (n)-[:SUPERSEDES]->(:Decision {key: $k}) RETURN n.key, n.title
+```
+
+**What blocks a project** (`entity_profile`, sprint planning):
+```cypher
+MATCH (b:Source)-[:BLOCKS]->(s:Source)-[:MENTIONS]->(:Project {key: $k})
+OPTIONAL MATCH (b)-[:ASSIGNED_TO]->(a)
+RETURN b.key, b.title, b.status, a.name, s.key AS blocks
+```
+
+**Keeping knowledge current** — a new decision replaces an older one (`add_knowledge`):
+```cypher
+MATCH (d:Decision {status: 'active'})-[:AFFECTS]->(e) WHERE e.key IN $affects RETURN d.key, d.title, collect(e.key)
+MATCH (n:Decision {key: $new}), (o:Decision {key: $old}) SET o.status = 'superseded' MERGE (n)-[:SUPERSEDES]->(o)
+```
+
+**Retrieval** — full-text search, scored per term (`search_knowledge`):
+```cypher
+CALL db.idx.fulltext.createNodeIndex('Source', 'text', 'title')
+CALL db.idx.fulltext.queryNodes('Source', $term) YIELD node, score RETURN node.key, score
+```
+
+**Graph algorithms** — knowledge risks (`brain_insights.py`):
+```cypher
+// key connectors: people on the most paths between knowledge
+CALL algo.betweenness({nodeLabels: ['Person','Source','Project','System','Decision'],
+  relationshipTypes: ['AUTHORED','MENTIONS','LEADS','USES','MADE','AFFECTS','DECIDED_IN','ASSIGNED_TO']})
+YIELD node, score WHERE node:Person RETURN node.name, score ORDER BY score DESC LIMIT 5
+// central topics
+CALL algo.pageRank(null, null) YIELD node, score WHERE node:Project OR node:System
+RETURN node.name, score ORDER BY score DESC LIMIT 5
+// unconnected knowledge: items outside the main component
+CALL algo.WCC({nodeLabels: ['Person','Team','Project','System','Source','Decision']})
+YIELD node, componentId RETURN componentId, collect(node.key), count(node) ORDER BY count(node) DESC
+```
 
 ## Getting started
 
@@ -318,6 +378,10 @@ Requires `pip install mcp` (1.x or 2.x).
 | Without an AI key, linking relies on known names, @mentions and a technology list. | Local embedding model for semantic linking offline. |
 | Slack setup is one app per company via a generated manifest. | One-click "Add to Slack" distribution. |
 | GitHub import reads the 100 most recently updated issues/PRs of public repos. | Pagination, private repos, and Confluence/Notion connectors. |
+
+## AI assistance disclosure
+
+As the hackathon rules require, I disclose that this project was built with an AI coding assistant: **Anthropic's Claude (via Claude Code)**. It helped write and debug code, tests, UI and documentation, and recorded the demo video narration (macOS text-to-speech). I chose the track and the problem, directed the product and design decisions through each iteration, and reviewed and tested the result. The Cypher queries, graph model and architecture are documented above, and I can walk through them.
 
 ## Credits
 
